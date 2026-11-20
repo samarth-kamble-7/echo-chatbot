@@ -84,22 +84,7 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
-/* Custom Utilities matching the HTML design */
-
-@keyframes float-gentle {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
-.animate-float {
-  animation: float-gentle 6s ease-in-out infinite;
-}
+/* Custom Utilities matching the design */
 
 .glass-card {
   background: rgba(255, 255, 255, 0.02);
@@ -256,5 +241,12 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  button,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"] {
+    cursor: pointer;
   }
 }
