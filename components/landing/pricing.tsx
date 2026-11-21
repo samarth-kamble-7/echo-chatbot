@@ -160,7 +160,7 @@ export const Pricing = () => {
                 </div>
               </div>
 
-              <Link href="/api/auth" className="w-full">
+              <Link href="/sign-up" className="w-full">
                 <Button
                   className={`w-full h-10 text-sm font-medium rounded-md transition-colors ${
                     plan.highlighted

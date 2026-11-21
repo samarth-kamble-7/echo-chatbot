@@ -250,3 +250,22 @@
     cursor: pointer;
   }
 }
+
+/* Clerk User Button Popover Dark Theme Overrides */
+.cl-userPreviewMainIdentifier,
+.cl-userButtonPopoverMainIdentifier {
+  color: #ffffff !important;
+}
+
+.cl-userPreviewSecondaryIdentifier,
+.cl-userButtonPopoverSecondaryIdentifier {
+  color: #d4d4d8 !important;
+}
+
+.cl-userButtonPopoverActionButtonText {
+  color: #f4f4f5 !important;
+}
+
+.cl-userButtonPopoverActionButtonIcon {
+  color: #a1a1aa !important;
+}
