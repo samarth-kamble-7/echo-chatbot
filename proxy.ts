@@ -21,16 +21,18 @@ const isAuthRoute = createRouteMatcher([
 ]);
 
 export const proxy = clerkMiddleware(async (auth, request) => {
-  const { userId } = await auth();
+  // Allow pending sessions (e.g. users who have not yet completed choose-organization onboarding)
+  const { userId } = await auth({ treatPendingAsSignedOut: false });
 
-  // If user is already logged in and attempts to access auth pages, redirect to home
+  // 1. If user is already logged in and attempts to access auth pages, redirect to dashboard
   if (userId && isAuthRoute(request)) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Protect all routes except the defined public routes
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+  // 2. Protect non-public routes: if user is not logged in, redirect directly to /sign-in
+  if (!isPublicRoute(request) && !userId) {
+    const signInUrl = new URL("/sign-in", request.url);
+    return NextResponse.redirect(signInUrl);
   }
 });
 

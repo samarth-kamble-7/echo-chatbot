@@ -41,6 +41,12 @@ export const Navbar = () => {
         <div className="hidden md:flex items-center gap-3">
           {isLoaded && isSignedIn ? (
             <div className="flex items-center gap-3">
+              <Link
+                href="/dashboard"
+                className="h-9 px-3.5 inline-flex items-center justify-center text-xs font-medium text-zinc-200 hover:text-white rounded-md bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
+              >
+                Dashboard
+              </Link>
               <UserButton
                 appearance={{
                   elements: {
@@ -113,7 +119,13 @@ export const Navbar = () => {
 
           {isLoaded && isSignedIn ? (
             <div className="pt-3 border-t border-zinc-800 flex items-center justify-between py-2">
-              <span className="text-xs text-zinc-400 font-medium">My Account</span>
+              <Link
+                href="/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-xs font-medium text-zinc-200 hover:text-white px-2.5 py-1.5 rounded-md bg-zinc-900 border border-zinc-800"
+              >
+                Dashboard
+              </Link>
               <UserButton />
             </div>
           ) : isLoaded ? (

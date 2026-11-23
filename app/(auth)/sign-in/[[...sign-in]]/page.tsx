@@ -27,15 +27,16 @@ export default function CustomSignInPage() {
   const [needsSecondFactor, setNeedsSecondFactor] = useState(false);
   const [secondFactorStrategy, setSecondFactorStrategy] = useState<"email_code" | "phone_code" | "totp">("email_code");
   const [code, setCode] = useState("");
+  const [resending, setResending] = useState(false);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // If already logged in, redirect away immediately
+  // If already logged in, redirect away immediately to dashboard
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      router.replace("/");
+      router.replace("/dashboard");
     }
   }, [isLoaded, isSignedIn, router]);
 
@@ -48,7 +49,7 @@ export default function CustomSignInPage() {
       await signIn.sso({
         strategy,
         redirectCallbackUrl: "/sso-callback",
-        redirectUrl: "/",
+        redirectUrl: "/dashboard",
       });
     } catch (err: any) {
       setError(err?.message || `Failed to initiate ${strategy.replace("oauth_", "")} sign in.`);
@@ -65,14 +66,15 @@ export default function CustomSignInPage() {
     setError("");
 
     try {
-      const res = await signIn.create({
-        identifier: email,
+      // Use signIn.password to authenticate password credentials directly
+      const res = await signIn.password({
+        identifier: email.trim(),
         password,
       });
 
       if (res?.error) {
         if (res.error.message?.toLowerCase().includes("already signed in")) {
-          window.location.href = "/";
+          window.location.href = "/dashboard";
           return;
         }
         setError(res.error.message);
@@ -81,30 +83,52 @@ export default function CustomSignInPage() {
 
       if (signIn.status === "complete") {
         await signIn.finalize();
-        window.location.href = "/";
+        window.location.href = "/dashboard";
         return;
       }
 
-      // Handle Device Trust / Second Factor authentication
-      if (signIn.status === "needs_second_factor" || (signIn.status as string) === "needs_client_trust") {
-        const hasEmail = signIn.supportedSecondFactors?.some((f) => f.strategy === "email_code");
-        const hasPhone = signIn.supportedSecondFactors?.some((f) => f.strategy === "phone_code");
-        const hasTotp = signIn.supportedSecondFactors?.some((f) => f.strategy === "totp");
+      // Check if sign in requires verification (needs_client_trust, needs_first_factor, needs_second_factor)
+      const currentStatus = (signIn.status as string) || "";
+      if (
+        currentStatus === "needs_first_factor" ||
+        currentStatus === "needs_second_factor" ||
+        currentStatus === "needs_client_trust" ||
+        (signIn as any).firstFactorVerification?.status === "unverified"
+      ) {
+        const hasEmail =
+          signIn.supportedSecondFactors?.some((f) => f.strategy === "email_code") ||
+          signIn.supportedFirstFactors?.some((f) => f.strategy === "email_code") ||
+          (signIn as any).firstFactorVerification?.strategy === "email_code" ||
+          currentStatus === "needs_client_trust";
 
-        if (hasEmail) {
-          const sendRes = await signIn.mfa.sendEmailCode();
-          if (sendRes?.error) {
-            setError(sendRes.error.message);
-            return;
+        const hasPhone =
+          signIn.supportedSecondFactors?.some((f) => f.strategy === "phone_code") ||
+          signIn.supportedFirstFactors?.some((f) => f.strategy === "phone_code");
+
+        const hasTotp =
+          signIn.supportedSecondFactors?.some((f) => f.strategy === "totp");
+
+        if (hasEmail || (!hasPhone && !hasTotp)) {
+          // In Clerk Future API, email verification is triggered via signIn.emailCode
+          try {
+            if (typeof signIn.emailCode?.sendCode === "function") {
+              await signIn.emailCode.sendCode({ emailAddress: email.trim() });
+            }
+          } catch (sendErr) {
+            console.warn("Notice triggering email code:", sendErr);
           }
           setSecondFactorStrategy("email_code");
           setNeedsSecondFactor(true);
           return;
         } else if (hasPhone) {
-          const sendRes = await signIn.mfa.sendPhoneCode();
-          if (sendRes?.error) {
-            setError(sendRes.error.message);
-            return;
+          try {
+            if (typeof signIn.phoneCode?.sendCode === "function") {
+              await signIn.phoneCode.sendCode({});
+            } else if (typeof signIn.mfa?.sendPhoneCode === "function") {
+              await signIn.mfa.sendPhoneCode();
+            }
+          } catch (phoneErr) {
+            console.warn("Notice triggering phone code:", phoneErr);
           }
           setSecondFactorStrategy("phone_code");
           setNeedsSecondFactor(true);
@@ -120,7 +144,7 @@ export default function CustomSignInPage() {
     } catch (err: any) {
       const msg = err?.message || "Invalid email or password.";
       if (msg.toLowerCase().includes("already signed in")) {
-        window.location.href = "/";
+        window.location.href = "/dashboard";
         return;
       }
       setError(msg);
@@ -136,13 +160,23 @@ export default function CustomSignInPage() {
     setError("");
 
     try {
-      let verifyRes;
+      let verifyRes: any;
       if (secondFactorStrategy === "email_code") {
-        verifyRes = await signIn.mfa.verifyEmailCode({ code });
+        if (typeof signIn.emailCode?.verifyCode === "function") {
+          verifyRes = await signIn.emailCode.verifyCode({ code: code.trim() });
+        } else if (typeof (signIn.mfa as any)?.verifyEmailCode === "function") {
+          verifyRes = await (signIn.mfa as any).verifyEmailCode({ code: code.trim() });
+        }
       } else if (secondFactorStrategy === "phone_code") {
-        verifyRes = await signIn.mfa.verifyPhoneCode({ code });
+        if (typeof signIn.phoneCode?.verifyCode === "function") {
+          verifyRes = await signIn.phoneCode.verifyCode({ code: code.trim() });
+        } else if (typeof signIn.mfa?.verifyPhoneCode === "function") {
+          verifyRes = await signIn.mfa.verifyPhoneCode({ code: code.trim() });
+        }
       } else if (secondFactorStrategy === "totp") {
-        verifyRes = await signIn.mfa.verifyTOTP({ code });
+        if (typeof signIn.mfa?.verifyTOTP === "function") {
+          verifyRes = await signIn.mfa.verifyTOTP({ code: code.trim() });
+        }
       }
 
       if (verifyRes?.error) {
@@ -152,7 +186,7 @@ export default function CustomSignInPage() {
 
       if (signIn.status === "complete") {
         await signIn.finalize();
-        window.location.href = "/";
+        window.location.href = "/dashboard";
         return;
       }
 
@@ -161,6 +195,29 @@ export default function CustomSignInPage() {
       setError(err?.message || "Invalid verification code.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!signIn) return;
+    setResending(true);
+    setError("");
+    try {
+      if (secondFactorStrategy === "email_code") {
+        if (typeof signIn.emailCode?.sendCode === "function") {
+          await signIn.emailCode.sendCode({ emailAddress: email.trim() });
+        }
+      } else if (secondFactorStrategy === "phone_code") {
+        if (typeof signIn.phoneCode?.sendCode === "function") {
+          await signIn.phoneCode.sendCode({});
+        } else if (typeof signIn.mfa?.sendPhoneCode === "function") {
+          await signIn.mfa.sendPhoneCode();
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || "Failed to resend code.");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -225,18 +282,29 @@ export default function CustomSignInPage() {
               )}
             </Button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setNeedsSecondFactor(false);
-                setCode("");
-                setError("");
-              }}
-              className="w-full flex items-center justify-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer pt-2"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span>Back to sign in</span>
-            </button>
+            <div className="flex items-center justify-between pt-1">
+              {secondFactorStrategy !== "totp" && (
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={resending || loading}
+                  className="text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {resending ? "Sending..." : "Resend code"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setNeedsSecondFactor(false);
+                  setCode("");
+                  setError("");
+                }}
+                className="text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer ml-auto"
+              >
+                Back to sign in
+              </button>
+            </div>
           </form>
         </div>
       </AuthShell>

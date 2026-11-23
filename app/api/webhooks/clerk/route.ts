@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import fs from "fs";
 import path from "path";
 import { db } from "@/db/client";
-import { user } from "@/db/schema";
+import { organization, user } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 interface ClerkEmailAddress {
@@ -139,6 +139,67 @@ export async function POST(req: Request) {
           console.log(`[Clerk Webhook] Successfully deleted user ${id} from database.`);
         } catch (dbErr: any) {
           console.error(`[Clerk Webhook] DB delete error for user ${id}:`, dbErr);
+        }
+      }
+    }
+
+    // --- Organization Events ---
+    if (eventType === "organization.created" || eventType === "organization.updated") {
+      const { id, name, slug: orgSlug, image_url } = evt.data as any;
+      if (id && name) {
+        const autoSlug =
+          orgSlug ||
+          `${name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "org"}-${id.slice(-5)}`;
+
+        try {
+          await db
+            .insert(organization)
+            .values({
+              id,
+              name,
+              slug: autoSlug,
+              logo: image_url || null,
+            })
+            .onConflictDoUpdate({
+              target: organization.id,
+              set: {
+                name,
+                slug: autoSlug,
+                logo: image_url || null,
+              },
+            });
+          console.log(`[Clerk Webhook] Successfully saved organization ${id} (${name}) to database.`);
+        } catch (dbErr: any) {
+          console.error(`[Clerk Webhook] DB write error for organization ${id}:`, dbErr);
+        }
+      }
+    }
+
+    if (eventType === "organization.deleted") {
+      const { id } = evt.data as any;
+      if (id) {
+        try {
+          await db.delete(organization).where(eq(organization.id, id));
+          console.log(`[Clerk Webhook] Successfully deleted organization ${id} from database.`);
+        } catch (dbErr: any) {
+          console.error(`[Clerk Webhook] DB delete error for organization ${id}:`, dbErr);
+        }
+      }
+    }
+
+    if (eventType === "organizationMembership.created") {
+      const { organization: org, public_user_data } = evt.data as any;
+      const orgId = org?.id;
+      const memberUserId = public_user_data?.user_id;
+      if (orgId && memberUserId) {
+        try {
+          await db
+            .update(user)
+            .set({ organization_id: orgId })
+            .where(eq(user.id, memberUserId));
+          console.log(`[Clerk Webhook] Linked user ${memberUserId} to organization ${orgId}`);
+        } catch (dbErr: any) {
+          console.error(`[Clerk Webhook] DB update error for membership:`, dbErr);
         }
       }
     }

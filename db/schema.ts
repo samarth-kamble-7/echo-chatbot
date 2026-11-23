@@ -9,3 +9,12 @@ export const user = pgTable("user", {
   image: text("image"),
   createdAt: text("created_at").default(sql`now()`),
 });
+
+export const organization = pgTable("organization", {
+  id: text("id").primaryKey(), // Clerk org ID: org_...
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(), // Auto-generated slug (e.g. acme-support)
+  logo: text("logo"),
+  website: text("website"),
+  createdAt: text("created_at").default(sql`now()`),
+});
