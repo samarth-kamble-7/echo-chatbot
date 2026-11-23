@@ -1,5 +1,6 @@
 allowBuilds:
   '@clerk/shared': true
   esbuild: true
+  ngrok: true
   sharp: false
   unrs-resolver: false

@@ -63,9 +63,9 @@ export default function CustomSignUpPage() {
         password,
       });
 
-      if (res.error) {
+      if (res?.error) {
         if (res.error.message?.toLowerCase().includes("already signed in")) {
-          router.replace("/");
+          window.location.href = "/";
           return;
         }
         setError(res.error.message);
@@ -73,7 +73,7 @@ export default function CustomSignUpPage() {
       }
 
       const sendRes = await signUp.verifications.sendEmailCode();
-      if (sendRes.error) {
+      if (sendRes?.error) {
         setError(sendRes.error.message);
         return;
       }
@@ -82,7 +82,7 @@ export default function CustomSignUpPage() {
     } catch (err: any) {
       const msg = err?.message || "Failed to create account.";
       if (msg.toLowerCase().includes("already signed in")) {
-        router.replace("/");
+        window.location.href = "/";
         return;
       }
       setError(msg);
@@ -102,14 +102,14 @@ export default function CustomSignUpPage() {
         code,
       });
 
-      if (verifyRes.error) {
+      if (verifyRes?.error) {
         setError(verifyRes.error.message);
         return;
       }
 
       if (signUp.status === "complete") {
         await signUp.finalize();
-        router.push("/");
+        window.location.href = "/";
       }
     } catch (err: any) {
       setError(err?.message || "Invalid verification code.");
@@ -139,46 +139,36 @@ export default function CustomSignUpPage() {
 
           <form onSubmit={handleVerify} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="verification-code" className="text-xs font-medium text-zinc-300">
+              <Label htmlFor="signup-code" className="text-xs font-medium text-zinc-300">
                 Verification Code
               </Label>
               <Input
-                id="verification-code"
+                id="signup-code"
                 type="text"
                 required
                 autoFocus
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
                 placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value.trim())}
                 maxLength={6}
-                className="h-11 text-center font-mono tracking-widest text-base bg-zinc-900/70 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus-visible:border-zinc-500 rounded-lg"
+                className="h-11 tracking-widest text-center text-lg font-mono bg-zinc-900/70 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus-visible:border-zinc-500 rounded-lg"
               />
             </div>
 
             <Button
               type="submit"
-              disabled={loading}
-              className="w-full h-11 text-xs sm:text-sm font-semibold rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2"
+              disabled={loading || code.length < 6}
+              className="w-full h-11 text-xs sm:text-sm font-semibold rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2 mt-2"
             >
               {loading ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <>
-                  <span>Verify Code</span>
+                  <span>Verify & Continue</span>
                   <Check className="size-4" />
                 </>
               )}
             </Button>
-
-            <div className="text-center pt-2">
-              <button
-                type="button"
-                onClick={() => setPendingVerification(false)}
-                className="text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
-              >
-                Use a different email address
-              </button>
-            </div>
           </form>
         </div>
       </AuthShell>
@@ -188,8 +178,8 @@ export default function CustomSignUpPage() {
   return (
     <AuthShell
       mode="sign-up"
-      title="Get Started Now"
-      subtitle="Create your account to start building AI support bots."
+      title="Create Your Account"
+      subtitle="Start delivering verified, hallucination-free support in minutes."
     >
       <div className="space-y-4">
         {/* Dual Social Logins: Google and Apple */}
@@ -233,10 +223,14 @@ export default function CustomSignUpPage() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Minimum 6 characters"
-            minLength={6}
+            placeholder="••••••••"
             icon={<Lock className="size-4" />}
           />
+
+          {/* Password requirement checklist hint */}
+          <div className="text-[11px] text-zinc-500 space-y-1 pt-1">
+            <p>Must contain at least 8 characters, one number and one symbol.</p>
+          </div>
 
           <Button
             type="submit"

@@ -46,9 +46,9 @@ export default function ForgotPasswordPage() {
         identifier: email,
       });
 
-      if (createRes.error) {
+      if (createRes?.error) {
         if (createRes.error.message?.toLowerCase().includes("already signed in")) {
-          router.replace("/");
+          window.location.href = "/";
           return;
         }
         setError(createRes.error.message);
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
       }
 
       const sendRes = await signIn.resetPasswordEmailCode.sendCode();
-      if (sendRes.error) {
+      if (sendRes?.error) {
         setError(sendRes.error.message);
         return;
       }
@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
     } catch (err: any) {
       const msg = err?.message || "Failed to send reset code. Please verify your email.";
       if (msg.toLowerCase().includes("already signed in")) {
-        router.replace("/");
+        window.location.href = "/";
         return;
       }
       setError(msg);
@@ -96,7 +96,7 @@ export default function ForgotPasswordPage() {
         code,
       });
 
-      if (verifyRes.error) {
+      if (verifyRes?.error) {
         setError(verifyRes.error.message);
         return;
       }
@@ -105,14 +105,14 @@ export default function ForgotPasswordPage() {
         password: newPassword,
       });
 
-      if (submitRes.error) {
+      if (submitRes?.error) {
         setError(submitRes.error.message);
         return;
       }
 
       if (signIn.status === "complete") {
         await signIn.finalize();
-        router.push("/");
+        window.location.href = "/";
       }
     } catch (err: any) {
       setError(err?.message || "Failed to reset password. Please verify the code.");
@@ -139,7 +139,7 @@ export default function ForgotPasswordPage() {
         {step === "code" && (
           <div className="flex items-center gap-2.5 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300">
             <ShieldCheck className="size-4 text-emerald-400 shrink-0" />
-            <span>Enter the 6-digit OTP code sent to your email to verify identity.</span>
+            <span>We sent a 6-digit recovery code to {email}.</span>
           </div>
         )}
 
@@ -152,6 +152,7 @@ export default function ForgotPasswordPage() {
               id="reset-email"
               type="email"
               required
+              autoFocus
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -167,7 +168,10 @@ export default function ForgotPasswordPage() {
               {loading ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
-                <span>Send Reset Code</span>
+                <>
+                  <span>Send Recovery Code</span>
+                  <Check className="size-4" />
+                </>
               )}
             </Button>
 
@@ -177,7 +181,7 @@ export default function ForgotPasswordPage() {
                 className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
               >
                 <ArrowLeft className="size-3.5" />
-                <span>Back to sign in</span>
+                <span>Back to Sign In</span>
               </Link>
             </div>
           </form>
@@ -192,68 +196,67 @@ export default function ForgotPasswordPage() {
                 type="text"
                 required
                 autoFocus
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
                 placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value.trim())}
                 maxLength={6}
-                className="h-11 text-center font-mono tracking-widest text-base bg-zinc-900/70 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus-visible:border-zinc-500 rounded-lg"
+                className="h-11 tracking-widest text-center text-lg font-mono bg-zinc-900/70 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus-visible:border-zinc-500 rounded-lg"
               />
             </div>
 
             <AuthInput
               label="New Password"
-              id="new-password"
+              id="reset-new-password"
               isPassword
               required
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Minimum 6 characters"
-              minLength={6}
+              placeholder="••••••••"
               icon={<Lock className="size-4" />}
             />
 
             <AuthInput
               label="Confirm New Password"
-              id="confirm-password"
+              id="reset-confirm-password"
               isPassword
               required
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter your password"
-              minLength={6}
+              placeholder="••••••••"
               icon={<Lock className="size-4" />}
             />
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || code.length < 6}
               className="w-full h-11 text-xs sm:text-sm font-semibold rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2 mt-2"
             >
               {loading ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <>
-                  <span>Reset Password & Sign In</span>
+                  <span>Reset Password</span>
                   <Check className="size-4" />
                 </>
               )}
             </Button>
 
-            <div className="flex items-center justify-between text-xs pt-2 text-zinc-400">
+            <div className="flex items-center justify-between text-xs pt-1">
               <button
                 type="button"
                 onClick={() => setStep("email")}
-                className="hover:text-white transition-colors cursor-pointer"
+                className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
               >
-                Use different email
+                Change email
               </button>
 
               <button
                 type="button"
                 onClick={handleSendCode}
-                className="hover:text-white transition-colors cursor-pointer"
+                disabled={loading}
+                className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
               >
                 Resend code
               </button>

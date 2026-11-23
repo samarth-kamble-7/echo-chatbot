@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
 // Public routes accessible without authentication
 const isPublicRoute = createRouteMatcher([
@@ -12,7 +13,21 @@ const isPublicRoute = createRouteMatcher([
   "/privacy(.*)",
 ]);
 
+// Auth routes that should NOT be accessible when already logged in
+const isAuthRoute = createRouteMatcher([
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/forgot-password(.*)",
+]);
+
 export const proxy = clerkMiddleware(async (auth, request) => {
+  const { userId } = await auth();
+
+  // If user is already logged in and attempts to access auth pages, redirect to home
+  if (userId && isAuthRoute(request)) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   // Protect all routes except the defined public routes
   if (!isPublicRoute(request)) {
     await auth.protect();

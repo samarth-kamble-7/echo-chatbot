@@ -4,13 +4,15 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSignIn, useUser } from "@clerk/nextjs";
-import { ArrowRight, Loader2, Lock, Mail } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
 
 import { AuthShell } from "@/components/auth/auth-shell";
 import { OAuthButton } from "@/components/auth/oauth-button";
 import { AuthDivider } from "@/components/auth/auth-divider";
 import { AuthError } from "@/components/auth/auth-error";
 import { AuthInput } from "@/components/auth/auth-input";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -20,6 +22,12 @@ export default function CustomSignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+
+  // 2FA / Device Trust state
+  const [needsSecondFactor, setNeedsSecondFactor] = useState(false);
+  const [secondFactorStrategy, setSecondFactorStrategy] = useState<"email_code" | "phone_code" | "totp">("email_code");
+  const [code, setCode] = useState("");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -62,9 +70,9 @@ export default function CustomSignInPage() {
         password,
       });
 
-      if (res.error) {
+      if (res?.error) {
         if (res.error.message?.toLowerCase().includes("already signed in")) {
-          router.replace("/");
+          window.location.href = "/";
           return;
         }
         setError(res.error.message);
@@ -73,12 +81,46 @@ export default function CustomSignInPage() {
 
       if (signIn.status === "complete") {
         await signIn.finalize();
-        router.push("/");
+        window.location.href = "/";
+        return;
       }
+
+      // Handle Device Trust / Second Factor authentication
+      if (signIn.status === "needs_second_factor" || (signIn.status as string) === "needs_client_trust") {
+        const hasEmail = signIn.supportedSecondFactors?.some((f) => f.strategy === "email_code");
+        const hasPhone = signIn.supportedSecondFactors?.some((f) => f.strategy === "phone_code");
+        const hasTotp = signIn.supportedSecondFactors?.some((f) => f.strategy === "totp");
+
+        if (hasEmail) {
+          const sendRes = await signIn.mfa.sendEmailCode();
+          if (sendRes?.error) {
+            setError(sendRes.error.message);
+            return;
+          }
+          setSecondFactorStrategy("email_code");
+          setNeedsSecondFactor(true);
+          return;
+        } else if (hasPhone) {
+          const sendRes = await signIn.mfa.sendPhoneCode();
+          if (sendRes?.error) {
+            setError(sendRes.error.message);
+            return;
+          }
+          setSecondFactorStrategy("phone_code");
+          setNeedsSecondFactor(true);
+          return;
+        } else if (hasTotp) {
+          setSecondFactorStrategy("totp");
+          setNeedsSecondFactor(true);
+          return;
+        }
+      }
+
+      setError("Unable to complete sign in. Please verify your credentials.");
     } catch (err: any) {
       const msg = err?.message || "Invalid email or password.";
       if (msg.toLowerCase().includes("already signed in")) {
-        router.replace("/");
+        window.location.href = "/";
         return;
       }
       setError(msg);
@@ -87,8 +129,118 @@ export default function CustomSignInPage() {
     }
   };
 
+  const handleSecondFactorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signIn) return;
+    setLoading(true);
+    setError("");
+
+    try {
+      let verifyRes;
+      if (secondFactorStrategy === "email_code") {
+        verifyRes = await signIn.mfa.verifyEmailCode({ code });
+      } else if (secondFactorStrategy === "phone_code") {
+        verifyRes = await signIn.mfa.verifyPhoneCode({ code });
+      } else if (secondFactorStrategy === "totp") {
+        verifyRes = await signIn.mfa.verifyTOTP({ code });
+      }
+
+      if (verifyRes?.error) {
+        setError(verifyRes.error.message);
+        return;
+      }
+
+      if (signIn.status === "complete") {
+        await signIn.finalize();
+        window.location.href = "/";
+        return;
+      }
+
+      setError("Verification incomplete. Please check the code.");
+    } catch (err: any) {
+      setError(err?.message || "Invalid verification code.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (isLoaded && isSignedIn) {
     return null;
+  }
+
+  // 2FA / Device Trust Verification Screen
+  if (needsSecondFactor) {
+    return (
+      <AuthShell
+        mode="sign-in"
+        title="Verify It's You"
+        subtitle={
+          secondFactorStrategy === "totp"
+            ? "Enter the code from your authenticator app"
+            : `We sent a 6-digit confirmation code to ${email}`
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-2.5 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300">
+            <ShieldCheck className="size-4 text-emerald-400 shrink-0" />
+            <span>
+              {secondFactorStrategy === "totp"
+                ? "Enter your 6-digit authenticator code to verify device access."
+                : "Enter the 6-digit code sent to your email to trust this device."}
+            </span>
+          </div>
+
+          <AuthError message={error} />
+
+          <form onSubmit={handleSecondFactorSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="signin-2fa-code" className="text-xs font-medium text-zinc-300">
+                Verification Code
+              </Label>
+              <Input
+                id="signin-2fa-code"
+                type="text"
+                required
+                autoFocus
+                placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value.trim())}
+                maxLength={6}
+                className="h-11 tracking-widest text-center text-lg font-mono bg-zinc-900/70 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus-visible:border-zinc-500 rounded-lg"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={loading || code.length < 6}
+              className="w-full h-11 text-xs sm:text-sm font-semibold rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2 mt-2"
+            >
+              {loading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <>
+                  <span>Verify & Sign In</span>
+                  <ArrowRight className="size-4" />
+                </>
+              )}
+            </Button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setNeedsSecondFactor(false);
+                setCode("");
+                setError("");
+              }}
+              className="w-full flex items-center justify-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer pt-2"
+            >
+              <ArrowLeft className="size-3.5" />
+              <span>Back to sign in</span>
+            </button>
+          </form>
+        </div>
+      </AuthShell>
+    );
   }
 
   return (
