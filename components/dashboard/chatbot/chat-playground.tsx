@@ -4,6 +4,12 @@ import React, { useState, useRef, useEffect } from "react";
 import { Send, Loader2, ExternalLink, FileText, Trash2 } from "lucide-react";
 import { askWorkspaceBot, type ChatCitation } from "@/lib/actions/chat";
 
+interface SectionOption {
+  id: string;
+  name: string;
+  tone: string;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -17,13 +23,16 @@ interface ChatMessage {
 interface ChatPlaygroundProps {
   geminiConfigured: boolean;
   sourceCount: number;
+  sections: SectionOption[];
 }
 
 export function ChatPlayground({
   geminiConfigured,
   sourceCount,
+  sections,
 }: ChatPlaygroundProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -48,7 +57,10 @@ export function ChatPlayground({
     setIsSending(true);
 
     try {
-      const res = await askWorkspaceBot(trimmed);
+      const res = await askWorkspaceBot(
+        trimmed,
+        selectedSectionId || undefined
+      );
       if (!res.success) {
         setMessages((prev) => [
           ...prev,
@@ -106,7 +118,23 @@ export function ChatPlayground({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {sections.length > 0 && (
+            <select
+              value={selectedSectionId}
+              onChange={(e) => setSelectedSectionId(e.target.value)}
+              aria-label="Filter by section"
+              className="h-7 px-2.5 rounded-md border border-zinc-800 bg-[#09090b] text-xs text-zinc-200 focus:outline-none focus:border-zinc-600"
+            >
+              <option value="">All Knowledge</option>
+              {sections.map((sec) => (
+                <option key={sec.id} value={sec.id}>
+                  Section: {sec.name} ({sec.tone})
+                </option>
+              ))}
+            </select>
+          )}
+
           <span
             className={`px-2.5 py-1 rounded-md border text-[11px] font-mono ${
               geminiConfigured

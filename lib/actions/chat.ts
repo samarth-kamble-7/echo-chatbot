@@ -1,8 +1,15 @@
 "use server";
 
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { section, sectionKnowledgeSource } from "@/db/schema";
 import { getActiveOrgContext } from "@/lib/knowledge/org";
 import { retrieveRelevantChunks } from "@/lib/knowledge/retrieve";
-import { generateGroundedAnswer, isGeminiConfigured } from "@/lib/ai/gemini";
+import {
+  generateGroundedAnswer,
+  isGeminiConfigured,
+  type SectionPromptConfig,
+} from "@/lib/ai/gemini";
 
 export interface ChatCitation {
   id: string;
@@ -29,7 +36,8 @@ export type ChatActionResult =
     };
 
 export async function askWorkspaceBot(
-  question: string
+  question: string,
+  sectionId?: string
 ): Promise<ChatActionResult> {
   const ctx = await getActiveOrgContext();
   if (!ctx) {
@@ -42,10 +50,57 @@ export async function askWorkspaceBot(
   }
 
   try {
+    let sourceIds: string[] | undefined;
+    let sectionConfig: SectionPromptConfig | undefined;
+
+    if (sectionId) {
+      const [sec] = await db
+        .select()
+        .from(section)
+        .where(
+          and(
+            eq(section.id, sectionId),
+            eq(section.organizationId, ctx.orgId)
+          )
+        )
+        .limit(1);
+
+      if (!sec) {
+        return { success: false, error: "Selected section was not found." };
+      }
+
+      if (!sec.isActive) {
+        return {
+          success: false,
+          error: `Section "${sec.name}" is currently paused.`,
+        };
+      }
+
+      const links = await db
+        .select({ sourceId: sectionKnowledgeSource.sourceId })
+        .from(sectionKnowledgeSource)
+        .where(
+          and(
+            eq(sectionKnowledgeSource.sectionId, sectionId),
+            eq(sectionKnowledgeSource.organizationId, ctx.orgId)
+          )
+        );
+
+      sourceIds = links.map((l) => l.sourceId);
+      sectionConfig = {
+        name: sec.name,
+        tone: sec.tone,
+        instructions: sec.instructions,
+        allowedTopics: sec.allowedTopics || [],
+        blockedTopics: sec.blockedTopics || [],
+      };
+    }
+
     const { chunks, mode } = await retrieveRelevantChunks({
       orgId: ctx.orgId,
       query: trimmed,
       limit: 5,
+      sourceIds,
     });
 
     const citations: ChatCitation[] = chunks.map((c) => ({
@@ -92,6 +147,7 @@ export async function askWorkspaceBot(
         content: c.content,
         similarity: c.similarity ?? undefined,
       })),
+      sectionConfig,
     });
 
     return {

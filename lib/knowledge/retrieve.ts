@@ -1,4 +1,4 @@
-import { and, cosineDistance, desc, eq, ilike, isNotNull, or, sql } from "drizzle-orm";
+import { and, cosineDistance, desc, eq, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { knowledgeChunk, knowledgeSource } from "@/db/schema";
 import { generateEmbedding, isGeminiConfigured } from "@/lib/ai/gemini";
@@ -22,12 +22,22 @@ export async function retrieveRelevantChunks(params: {
   orgId: string;
   query: string;
   limit?: number;
+  sourceIds?: string[];
 }): Promise<{ chunks: RetrievedChunk[]; mode: "vector" | "keyword" }> {
   const limit = params.limit ?? 5;
   const trimmedQuery = params.query.trim();
   if (!trimmedQuery) {
     return { chunks: [], mode: "keyword" };
   }
+
+  if (params.sourceIds && params.sourceIds.length === 0) {
+    return { chunks: [], mode: "keyword" };
+  }
+
+  const sourceFilter =
+    params.sourceIds && params.sourceIds.length > 0
+      ? inArray(knowledgeChunk.sourceId, params.sourceIds)
+      : undefined;
 
   if (isGeminiConfigured()) {
     try {
@@ -57,7 +67,8 @@ export async function retrieveRelevantChunks(params: {
             and(
               eq(knowledgeChunk.organizationId, params.orgId),
               eq(knowledgeSource.status, "ready"),
-              isNotNull(knowledgeChunk.embedding)
+              isNotNull(knowledgeChunk.embedding),
+              sourceFilter
             )
           )
           .orderBy(desc(similarity))
@@ -103,7 +114,8 @@ export async function retrieveRelevantChunks(params: {
       and(
         eq(knowledgeChunk.organizationId, params.orgId),
         eq(knowledgeSource.status, "ready"),
-        keywordCondition
+        keywordCondition,
+        sourceFilter
       )
     )
     .limit(limit);

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, jsonb, pgTable, text, vector } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, text, vector } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -60,3 +60,36 @@ export const knowledgeChunk = pgTable("knowledge_chunk", {
 export type KnowledgeSource = typeof knowledgeSource.$inferSelect;
 export type NewKnowledgeSource = typeof knowledgeSource.$inferInsert;
 export type KnowledgeChunk = typeof knowledgeChunk.$inferSelect;
+
+export const section = pgTable("section", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  tone: text("tone").notNull().default("professional"), // "professional" | "friendly" | "concise" | "technical"
+  instructions: text("instructions"),
+  allowedTopics: jsonb("allowed_topics").$type<string[]>().notNull().default([]),
+  blockedTopics: jsonb("blocked_topics").$type<string[]>().notNull().default([]),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: text("created_at").default(sql`now()`),
+  updatedAt: text("updated_at").default(sql`now()`),
+});
+
+export const sectionKnowledgeSource = pgTable("section_knowledge_source", {
+  id: text("id").primaryKey(),
+  sectionId: text("section_id")
+    .notNull()
+    .references(() => section.id, { onDelete: "cascade" }),
+  sourceId: text("source_id")
+    .notNull()
+    .references(() => knowledgeSource.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  createdAt: text("created_at").default(sql`now()`),
+});
+
+export type Section = typeof section.$inferSelect;
+export type NewSection = typeof section.$inferInsert;

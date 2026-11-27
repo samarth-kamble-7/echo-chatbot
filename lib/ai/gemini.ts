@@ -5,6 +5,14 @@ export interface GroundedContext {
   similarity?: number;
 }
 
+export interface SectionPromptConfig {
+  name: string;
+  tone: string;
+  instructions?: string | null;
+  allowedTopics: string[];
+  blockedTopics: string[];
+}
+
 const EMBEDDING_DIMENSION = 768;
 
 function getGeminiApiKey(): string | null {
@@ -101,6 +109,7 @@ export async function generateEmbeddingsForChunks(
 export async function generateGroundedAnswer(params: {
   question: string;
   contexts: GroundedContext[];
+  sectionConfig?: SectionPromptConfig;
 }): Promise<{ answer: string; model: string }> {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
@@ -121,13 +130,37 @@ export async function generateGroundedAnswer(params: {
           )
           .join("\n\n---\n\n");
 
+  const sectionRules: string[] = [];
+  if (params.sectionConfig) {
+    const sc = params.sectionConfig;
+    sectionRules.push(`Active Section: ${sc.name}`);
+    sectionRules.push(`Tone: Respond in a ${sc.tone} tone.`);
+    if (sc.instructions) {
+      sectionRules.push(`Section Behavior Instructions: ${sc.instructions}`);
+    }
+    if (sc.allowedTopics.length > 0) {
+      sectionRules.push(
+        `Allowed Topics (stay focused on these): ${sc.allowedTopics.join(", ")}`
+      );
+    }
+    if (sc.blockedTopics.length > 0) {
+      sectionRules.push(
+        `Blocked Topics (strictly refuse to answer or discuss these, politely redirect instead): ${sc.blockedTopics.join(
+          ", "
+        )}`
+      );
+    }
+  }
+
   const systemInstruction = `You are Echo Support, a technical customer support assistant.
 Answer the user's question using ONLY the provided documentation context below.
 Rules:
 1. Never invent facts, endpoints, pricing, or steps that are not explicitly in the provided context.
 2. If the context does not contain enough information to answer, clearly state that the documentation does not cover this and recommend contacting human support.
 3. Cite your sources inline like [Source 1] or [Source 2] when referencing information.
-4. Keep answers clear, concise, and developer-friendly.`;
+4. Keep answers clear, concise, and developer-friendly.${
+    sectionRules.length > 0 ? `\n\nSection Rules:\n${sectionRules.join("\n")}` : ""
+  }`;
 
   const candidateModels = ["gemini-3.8-flash", "gemini-2.5-flash"];
   let lastError = "";
