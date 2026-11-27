@@ -14,6 +14,7 @@ import { getActiveOrgContext } from "@/lib/knowledge/org";
 import { chunkText } from "@/lib/knowledge/chunker";
 import { fetchAndExtractUrl } from "@/lib/knowledge/extractor";
 import { extractTextFromPdf } from "@/lib/knowledge/pdf";
+import { generateEmbeddingsForChunks } from "@/lib/ai/gemini";
 import {
   deleteFileFromImageKit,
   uploadFileToImageKit,
@@ -41,6 +42,9 @@ async function saveSourceAndChunks(params: {
 
   const sourceId = crypto.randomUUID();
   const now = new Date().toISOString();
+  const embeddings = await generateEmbeddingsForChunks(
+    chunks.map((c) => c.content)
+  );
 
   const [created] = await db
     .insert(knowledgeSource)
@@ -60,13 +64,14 @@ async function saveSourceAndChunks(params: {
     .returning();
 
   await db.insert(knowledgeChunk).values(
-    chunks.map((c) => ({
+    chunks.map((c, idx) => ({
       id: crypto.randomUUID(),
       sourceId,
       organizationId: params.orgId,
       chunkIndex: c.chunkIndex,
       content: c.content,
       tokenCount: c.tokenCount,
+      embedding: embeddings[idx] ?? null,
       metadata: {
         title: params.name,
         sourceUrl: params.sourceUrl || undefined,
@@ -326,14 +331,19 @@ export async function resyncKnowledgeSource(
         )
       );
 
+    const embeddings = await generateEmbeddingsForChunks(
+      chunks.map((c) => c.content)
+    );
+
     await db.insert(knowledgeChunk).values(
-      chunks.map((c) => ({
+      chunks.map((c, idx) => ({
         id: crypto.randomUUID(),
         sourceId,
         organizationId: ctx.orgId,
         chunkIndex: c.chunkIndex,
         content: c.content,
         tokenCount: c.tokenCount,
+        embedding: embeddings[idx] ?? null,
         metadata: {
           title: source.name,
           sourceUrl: extracted.finalUrl,

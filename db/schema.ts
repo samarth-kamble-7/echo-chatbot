@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgTable, text, vector } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -16,6 +16,7 @@ export const organization = pgTable("organization", {
   slug: text("slug").notNull().unique(), // Auto-generated slug (e.g. acme-support)
   logo: text("logo"),
   website: text("website"),
+  docsUrl: text("docs_url"),
   createdAt: text("created_at").default(sql`now()`),
 });
 
@@ -47,6 +48,7 @@ export const knowledgeChunk = pgTable("knowledge_chunk", {
   chunkIndex: integer("chunk_index").notNull(),
   content: text("content").notNull(),
   tokenCount: integer("token_count").notNull().default(0),
+  embedding: vector("embedding", { dimensions: 768 }),
   metadata: jsonb("metadata").$type<{
     title?: string;
     sourceUrl?: string;

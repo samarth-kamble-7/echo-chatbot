@@ -1,9 +1,16 @@
 import React from "react";
+import { getKnowledgeSources } from "@/lib/actions/knowledge";
+import { isGeminiConfigured } from "@/lib/ai/gemini";
+import { ChatPlayground } from "@/components/dashboard/chatbot/chat-playground";
 
-export default function ChatbotPage() {
+export default async function ChatbotPage() {
+  const res = await getKnowledgeSources();
+  const sourceCount = res.success ? res.data.length : 0;
+
   return (
-    <div>
-      <h1>Chatbot</h1>
-    </div>
+    <ChatPlayground
+      geminiConfigured={isGeminiConfigured()}
+      sourceCount={sourceCount}
+    />
   );
 }
