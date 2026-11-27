@@ -2,7 +2,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { section, sectionKnowledgeSource } from "@/db/schema";
+import { chatbotSettings, section, sectionKnowledgeSource } from "@/db/schema";
 import { getActiveOrgContext } from "@/lib/knowledge/org";
 import { retrieveRelevantChunks } from "@/lib/knowledge/retrieve";
 import {
@@ -49,26 +49,57 @@ export async function askWorkspaceBot(
     return { success: false, error: "Please enter a question." };
   }
 
+  if (!isGeminiConfigured()) {
+    return {
+      success: false,
+      error: "Assistant is not configured yet. Please check your API settings.",
+    };
+  }
+
   try {
+    // Run bot settings, optional section lookup, and linked sources in parallel
+    const [botRows, sectionRows, linkRows] = await Promise.all([
+      db
+        .select({
+          botName: chatbotSettings.botName,
+          systemPrompt: chatbotSettings.systemPrompt,
+        })
+        .from(chatbotSettings)
+        .where(eq(chatbotSettings.organizationId, ctx.orgId))
+        .limit(1),
+      sectionId
+        ? db
+            .select()
+            .from(section)
+            .where(
+              and(
+                eq(section.id, sectionId),
+                eq(section.organizationId, ctx.orgId)
+              )
+            )
+            .limit(1)
+        : Promise.resolve([]),
+      sectionId
+        ? db
+            .select({ sourceId: sectionKnowledgeSource.sourceId })
+            .from(sectionKnowledgeSource)
+            .where(
+              and(
+                eq(sectionKnowledgeSource.sectionId, sectionId),
+                eq(sectionKnowledgeSource.organizationId, ctx.orgId)
+              )
+            )
+        : Promise.resolve([]),
+    ]);
+
     let sourceIds: string[] | undefined;
     let sectionConfig: SectionPromptConfig | undefined;
 
     if (sectionId) {
-      const [sec] = await db
-        .select()
-        .from(section)
-        .where(
-          and(
-            eq(section.id, sectionId),
-            eq(section.organizationId, ctx.orgId)
-          )
-        )
-        .limit(1);
-
+      const sec = sectionRows[0];
       if (!sec) {
         return { success: false, error: "Selected section was not found." };
       }
-
       if (!sec.isActive) {
         return {
           success: false,
@@ -76,17 +107,7 @@ export async function askWorkspaceBot(
         };
       }
 
-      const links = await db
-        .select({ sourceId: sectionKnowledgeSource.sourceId })
-        .from(sectionKnowledgeSource)
-        .where(
-          and(
-            eq(sectionKnowledgeSource.sectionId, sectionId),
-            eq(sectionKnowledgeSource.organizationId, ctx.orgId)
-          )
-        );
-
-      sourceIds = links.map((l) => l.sourceId);
+      sourceIds = linkRows.map((l) => l.sourceId);
       sectionConfig = {
         name: sec.name,
         tone: sec.tone,
@@ -99,7 +120,7 @@ export async function askWorkspaceBot(
     const { chunks, mode } = await retrieveRelevantChunks({
       orgId: ctx.orgId,
       query: trimmed,
-      limit: 5,
+      limit: 4,
       sourceIds,
     });
 
@@ -112,33 +133,7 @@ export async function askWorkspaceBot(
       snippet: c.content.slice(0, 220) + (c.content.length > 220 ? "..." : ""),
     }));
 
-    if (!isGeminiConfigured()) {
-      if (chunks.length === 0) {
-        return {
-          success: true,
-          data: {
-            answer:
-              "No matching documentation chunks were found. Add GEMINI_API_KEY to .env for vector search and AI-generated answers.",
-            citations: [],
-            retrievalMode: mode,
-            model: "keyword-only",
-          },
-        };
-      }
-
-      return {
-        success: true,
-        data: {
-          answer: `GEMINI_API_KEY is not configured yet, so AI generation is disabled. Found ${chunks.length} matching documentation ${
-            chunks.length === 1 ? "chunk" : "chunks"
-          } via keyword search (see citations below).`,
-          citations,
-          retrievalMode: mode,
-          model: "keyword-only",
-        },
-      };
-    }
-
+    const botRow = botRows[0];
     const { answer, model } = await generateGroundedAnswer({
       question: trimmed,
       contexts: chunks.map((c) => ({
@@ -148,6 +143,9 @@ export async function askWorkspaceBot(
         similarity: c.similarity ?? undefined,
       })),
       sectionConfig,
+      botIdentity: botRow
+        ? { botName: botRow.botName, systemPrompt: botRow.systemPrompt }
+        : undefined,
     });
 
     return {

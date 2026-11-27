@@ -45,10 +45,10 @@ function getTypeStyle(type: string) {
 }
 
 function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
+  if (!dateStr) return "-";
   const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -177,7 +177,10 @@ export function KnowledgeTable({
                     {src.chunkCount}
                   </td>
 
-                  <td className="py-3 px-4 text-zinc-400 whitespace-nowrap">
+                  <td
+                    className="py-3 px-4 text-zinc-400 whitespace-nowrap"
+                    suppressHydrationWarning
+                  >
                     {formatDate(src.lastSyncedAt)}
                   </td>
 

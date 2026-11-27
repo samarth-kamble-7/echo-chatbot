@@ -110,6 +110,10 @@ export async function generateGroundedAnswer(params: {
   question: string;
   contexts: GroundedContext[];
   sectionConfig?: SectionPromptConfig;
+  botIdentity?: {
+    botName?: string;
+    systemPrompt?: string | null;
+  };
 }): Promise<{ answer: string; model: string }> {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
@@ -152,17 +156,22 @@ export async function generateGroundedAnswer(params: {
     }
   }
 
-  const systemInstruction = `You are Echo Support, a technical customer support assistant.
+  const botName = params.botIdentity?.botName?.trim() || "Echo Support";
+  const customInstructions = params.botIdentity?.systemPrompt?.trim();
+
+  const systemInstruction = `You are ${botName}, a technical customer support assistant.
 Answer the user's question using ONLY the provided documentation context below.
 Rules:
 1. Never invent facts, endpoints, pricing, or steps that are not explicitly in the provided context.
 2. If the context does not contain enough information to answer, clearly state that the documentation does not cover this and recommend contacting human support.
-3. Cite your sources inline like [Source 1] or [Source 2] when referencing information.
-4. Keep answers clear, concise, and developer-friendly.${
+3. Do not mention internal source labels like [Source 1] or file names in your reply.
+4. Keep answers clear, concise, and helpful.${
+    customInstructions ? `\n\nWorkspace Instructions:\n${customInstructions}` : ""
+  }${
     sectionRules.length > 0 ? `\n\nSection Rules:\n${sectionRules.join("\n")}` : ""
   }`;
 
-  const candidateModels = ["gemini-3.8-flash", "gemini-2.5-flash"];
+  const candidateModels = ["gemini-2.5-flash", "gemini-3.8-flash"];
   let lastError = "";
 
   for (const model of candidateModels) {
@@ -189,7 +198,10 @@ Rules:
           ],
           generationConfig: {
             temperature: 0.2,
-            maxOutputTokens: 1024,
+            maxOutputTokens: 768,
+            thinkingConfig: {
+              thinkingBudget: 0,
+            },
           },
         }),
       }

@@ -1,27 +1,44 @@
 import React from "react";
-import { getKnowledgeSources } from "@/lib/actions/knowledge";
 import { getSectionsWithSources } from "@/lib/actions/sections";
-import { isGeminiConfigured } from "@/lib/ai/gemini";
+import { getChatbotSettings } from "@/lib/actions/chatbot";
 import { ChatPlayground } from "@/components/dashboard/chatbot/chat-playground";
 
 export default async function ChatbotPage() {
-  const [sourcesRes, sectionsRes] = await Promise.all([
-    getKnowledgeSources(),
+  const [sectionsRes, settingsRes] = await Promise.all([
     getSectionsWithSources(),
+    getChatbotSettings(),
   ]);
 
-  const sourceCount = sourcesRes.success ? sourcesRes.data.length : 0;
   const activeSections = sectionsRes.success
     ? sectionsRes.data
         .filter((s) => s.isActive)
         .map((s) => ({ id: s.id, name: s.name, tone: s.tone }))
     : [];
 
+  const orgId = settingsRes.success ? settingsRes.data.orgId : "";
+  const initialConfig = settingsRes.success
+    ? settingsRes.data.config
+    : {
+        botName: "Echo Support",
+        subtitle: "Online",
+        welcomeMessage: "Hi! Ask me anything about our documentation.",
+        inputPlaceholder: "Ask a question...",
+        primaryColor: "#10b981",
+        theme: "dark" as const,
+        position: "bottom-right" as const,
+        launcherIcon: "message" as const,
+        launcherStyle: "icon" as const,
+        launcherText: "Chat with us",
+        suggestedQuestions: [],
+        supportEmail: "",
+        systemPrompt: "",
+      };
+
   return (
     <ChatPlayground
-      geminiConfigured={isGeminiConfigured()}
-      sourceCount={sourceCount}
+      orgId={orgId}
       sections={activeSections}
+      initialConfig={initialConfig}
     />
   );
 }

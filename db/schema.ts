@@ -93,3 +93,35 @@ export const sectionKnowledgeSource = pgTable("section_knowledge_source", {
 
 export type Section = typeof section.$inferSelect;
 export type NewSection = typeof section.$inferInsert;
+
+export const chatbotSettings = pgTable("chatbot_settings", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .unique()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  botName: text("bot_name").notNull().default("Echo Support"),
+  subtitle: text("subtitle").notNull().default("Online"),
+  welcomeMessage: text("welcome_message")
+    .notNull()
+    .default("Hi! Ask me anything about our documentation."),
+  inputPlaceholder: text("input_placeholder")
+    .notNull()
+    .default("Ask a question..."),
+  primaryColor: text("primary_color").notNull().default("#10b981"),
+  theme: text("theme").notNull().default("dark"), // "dark" | "light"
+  position: text("position").notNull().default("bottom-right"), // "bottom-right" | "bottom-left"
+  launcherIcon: text("launcher_icon").notNull().default("message"), // "message" | "bot" | "headphones" | "help"
+  launcherStyle: text("launcher_style").notNull().default("icon"), // "icon" | "pill"
+  launcherText: text("launcher_text").notNull().default("Chat with us"),
+  suggestedQuestions: jsonb("suggested_questions")
+    .$type<string[]>()
+    .notNull()
+    .default([]),
+  supportEmail: text("support_email"),
+  systemPrompt: text("system_prompt"),
+  createdAt: text("created_at").default(sql`now()`),
+  updatedAt: text("updated_at").default(sql`now()`),
+});
+
+export type ChatbotSettings = typeof chatbotSettings.$inferSelect;
