@@ -22,7 +22,7 @@ type SourceTab = "url" | "file" | "text";
 interface AddSourceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (source: KnowledgeSource) => void;
+  onCreated: (sources: KnowledgeSource[]) => void;
 }
 
 export function AddSourceModal({
@@ -33,6 +33,8 @@ export function AddSourceModal({
   const [activeTab, setActiveTab] = useState<SourceTab>("url");
   const [name, setName] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
+  const [crawlMode, setCrawlMode] = useState<"single" | "crawl">("single");
+  const [maxPages, setMaxPages] = useState<number>(10);
   const [content, setContent] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -75,6 +77,8 @@ export function AddSourceModal({
         const res = await createUrlKnowledgeSource({
           name: name.trim() || undefined,
           sourceUrl: sourceUrl.trim(),
+          mode: crawlMode,
+          maxPages,
         });
         if (!res.success) {
           setError(res.error);
@@ -96,7 +100,7 @@ export function AddSourceModal({
           setError(res.error);
           return;
         }
-        onCreated(res.data);
+        onCreated([res.data]);
       } else {
         const res = await createTextKnowledgeSource({
           name: name.trim() || "Text Snippet",
@@ -106,7 +110,7 @@ export function AddSourceModal({
           setError(res.error);
           return;
         }
-        onCreated(res.data);
+        onCreated([res.data]);
       }
 
       resetForm();
@@ -204,18 +208,72 @@ export function AddSourceModal({
           </div>
 
           {activeTab === "url" && (
-            <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-zinc-300">
-                Documentation URL
-              </label>
-              <input
-                type="url"
-                required
-                value={sourceUrl}
-                onChange={(e) => setSourceUrl(e.target.value)}
-                placeholder="https://docs.example.com/quickstart"
-                className="w-full h-9 px-3 rounded-lg border border-zinc-800 bg-[#050509] text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
-              />
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-zinc-300">
+                  Documentation URL
+                </label>
+                <input
+                  type="url"
+                  required
+                  value={sourceUrl}
+                  onChange={(e) => setSourceUrl(e.target.value)}
+                  placeholder="https://docs.example.com/quickstart"
+                  className="w-full h-9 px-3 rounded-lg border border-zinc-800 bg-[#050509] text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-zinc-300">
+                    Scrape Mode
+                  </label>
+                  <div className="grid grid-cols-2 gap-1 p-1 rounded-md bg-[#050509] border border-zinc-800">
+                    {(
+                      [
+                        { id: "single", label: "Single page" },
+                        { id: "crawl", label: "Crawl site" },
+                      ] as const
+                    ).map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setCrawlMode(m.id)}
+                        className={`py-1 rounded text-[11px] font-medium cursor-pointer transition-colors ${
+                          crawlMode === m.id
+                            ? "bg-zinc-800 text-zinc-100"
+                            : "text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {crawlMode === "crawl" && (
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-medium text-zinc-300">
+                      Max Pages
+                    </label>
+                    <select
+                      value={maxPages}
+                      onChange={(e) => setMaxPages(Number(e.target.value))}
+                      className="w-full h-9 px-2.5 rounded-md border border-zinc-800 bg-[#050509] text-xs text-zinc-100 focus:outline-none focus:border-zinc-600"
+                    >
+                      <option value={5}>5 pages</option>
+                      <option value={10}>10 pages</option>
+                      <option value={20}>20 pages</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {crawlMode === "crawl" && (
+                <p className="text-[11px] text-zinc-500">
+                  Discovers subpages via sitemap.xml and links under the URL path.
+                </p>
+              )}
             </div>
           )}
 

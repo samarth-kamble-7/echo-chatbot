@@ -57,12 +57,12 @@ const MENU_ITEMS: NavItemConfig[] = [
 
 export function DashboardSidebar() {
   return (
-    <aside className="w-64 h-screen sticky top-0 flex flex-col justify-between bg-[#09090b] border-r border-zinc-800/80 shrink-0 select-none z-20">
+    <aside className="w-64 h-dvh min-h-screen sticky top-0 flex flex-col justify-between bg-[#09090b] border-r border-zinc-800/80 shrink-0 select-none z-20">
       {/* Top Workspace + Navigation */}
-      <div className="flex flex-col min-h-0 overflow-y-auto">
+      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
         <WorkspaceSwitcher />
 
-        <div className="p-3">
+        <div className="px-3.5 py-4 flex-1">
           <NavSection items={MENU_ITEMS} />
         </div>
       </div>

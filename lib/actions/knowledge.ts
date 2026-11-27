@@ -12,7 +12,10 @@ import {
 } from "@/db/schema";
 import { getActiveOrgContext } from "@/lib/knowledge/org";
 import { chunkText } from "@/lib/knowledge/chunker";
-import { fetchAndExtractUrl } from "@/lib/knowledge/extractor";
+import {
+  discoverSiteUrls,
+  fetchAndExtractUrl,
+} from "@/lib/knowledge/extractor";
 import { extractTextFromPdf } from "@/lib/knowledge/pdf";
 import { generateEmbeddingsForChunks } from "@/lib/ai/gemini";
 import {
@@ -151,7 +154,9 @@ export async function getKnowledgeSourceWithChunks(sourceId: string): Promise<
 export async function createUrlKnowledgeSource(input: {
   name?: string;
   sourceUrl: string;
-}): Promise<ActionResult<KnowledgeSource>> {
+  mode?: "single" | "crawl";
+  maxPages?: number;
+}): Promise<ActionResult<KnowledgeSource[]>> {
   const ctx = await getActiveOrgContext();
   if (!ctx) {
     return { success: false, error: "Unauthorized" };
@@ -161,17 +166,60 @@ export async function createUrlKnowledgeSource(input: {
     return { success: false, error: "Please provide a valid URL" };
   }
 
-  try {
-    const extracted = await fetchAndExtractUrl(input.sourceUrl);
-    const finalName = input.name?.trim() || extracted.title || extracted.finalUrl;
+  const mode = input.mode === "crawl" ? "crawl" : "single";
+  const maxPages = Math.min(Math.max(input.maxPages ?? 10, 1), 20);
 
-    return await saveSourceAndChunks({
+  try {
+    const firstPage = await fetchAndExtractUrl(input.sourceUrl);
+    const firstResult = await saveSourceAndChunks({
       orgId: ctx.orgId,
-      name: finalName,
+      name: input.name?.trim() || firstPage.title || firstPage.finalUrl,
       type: "url",
-      sourceUrl: extracted.finalUrl,
-      text: extracted.text,
+      sourceUrl: firstPage.finalUrl,
+      text: firstPage.text,
     });
+
+    if (!firstResult.success) {
+      return firstResult;
+    }
+
+    const createdSources: KnowledgeSource[] = [firstResult.data];
+
+    if (mode === "crawl" && maxPages > 1) {
+      const urls = await discoverSiteUrls(
+        firstPage.finalUrl,
+        maxPages,
+        firstPage.html
+      );
+      const extraUrls = urls.filter((u) => u !== firstPage.finalUrl);
+
+      const batchSize = 3;
+      for (let i = 0; i < extraUrls.length; i += batchSize) {
+        const batch = extraUrls.slice(i, i + batchSize);
+        const settled = await Promise.all(
+          batch.map(async (url) => {
+            try {
+              const extracted = await fetchAndExtractUrl(url);
+              const saved = await saveSourceAndChunks({
+                orgId: ctx.orgId,
+                name: extracted.title || extracted.finalUrl,
+                type: "url",
+                sourceUrl: extracted.finalUrl,
+                text: extracted.text,
+              });
+              return saved.success ? saved.data : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+        for (const item of settled) {
+          if (item) createdSources.push(item);
+        }
+      }
+    }
+
+    return { success: true, data: createdSources };
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to fetch and index URL";

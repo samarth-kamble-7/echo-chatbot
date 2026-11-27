@@ -19,7 +19,7 @@ export function NavSection({ title, items, children }: NavSectionProps) {
         </div>
       )}
 
-      <div className="space-y-0.5">
+      <div className="space-y-2">
         {items?.map((item) => (
           <NavItem key={item.href} {...item} />
         ))}

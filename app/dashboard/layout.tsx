@@ -24,7 +24,9 @@ export default async function DashboardLayout({
 
   // 2. Check if the user belongs to ANY organization
   const client = await clerkClient();
-  let memberships: any[] = [];
+  let memberships: Awaited<
+    ReturnType<typeof client.users.getOrganizationMembershipList>
+  >["data"] = [];
   try {
     const res = await client.users.getOrganizationMembershipList({
       userId,

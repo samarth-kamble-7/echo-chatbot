@@ -26,13 +26,13 @@ export function NavItem({
     <Link
       href={href}
       onClick={onClick}
-      className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+      className={`group flex items-center justify-between h-10 px-3.5 rounded-lg text-[13px] font-medium transition-colors ${
         isActive
           ? "bg-zinc-800/90 text-white shadow-sm"
           : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
       }`}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
         <Icon
           className={`size-4 shrink-0 transition-colors ${
             isActive ? "text-emerald-400" : "text-zinc-500 group-hover:text-zinc-300"

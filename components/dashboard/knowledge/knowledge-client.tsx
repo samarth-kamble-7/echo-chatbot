@@ -50,8 +50,8 @@ export function KnowledgeClient({ initialSources }: KnowledgeClientProps) {
     [sources],
   );
 
-  const handleCreated = (newSource: KnowledgeSource) => {
-    setSources((prev) => [newSource, ...prev]);
+  const handleCreated = (newSources: KnowledgeSource[]) => {
+    setSources((prev) => [...newSources, ...prev]);
   };
 
   const handleViewChunks = async (source: KnowledgeSource) => {
