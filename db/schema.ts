@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -18,3 +18,43 @@ export const organization = pgTable("organization", {
   website: text("website"),
   createdAt: text("created_at").default(sql`now()`),
 });
+
+export const knowledgeSource = pgTable("knowledge_source", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // "url" | "file" | "text"
+  sourceUrl: text("source_url"),
+  fileId: text("file_id"), // ImageKit fileId for uploaded binary files (e.g. PDFs)
+  status: text("status").notNull().default("processing"), // "pending" | "processing" | "ready" | "error"
+  chunkCount: integer("chunk_count").notNull().default(0),
+  errorMessage: text("error_message"),
+  lastSyncedAt: text("last_synced_at").default(sql`now()`),
+  createdAt: text("created_at").default(sql`now()`),
+  updatedAt: text("updated_at").default(sql`now()`),
+});
+
+export const knowledgeChunk = pgTable("knowledge_chunk", {
+  id: text("id").primaryKey(),
+  sourceId: text("source_id")
+    .notNull()
+    .references(() => knowledgeSource.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  chunkIndex: integer("chunk_index").notNull(),
+  content: text("content").notNull(),
+  tokenCount: integer("token_count").notNull().default(0),
+  metadata: jsonb("metadata").$type<{
+    title?: string;
+    sourceUrl?: string;
+    heading?: string;
+  }>(),
+  createdAt: text("created_at").default(sql`now()`),
+});
+
+export type KnowledgeSource = typeof knowledgeSource.$inferSelect;
+export type NewKnowledgeSource = typeof knowledgeSource.$inferInsert;
+export type KnowledgeChunk = typeof knowledgeChunk.$inferSelect;

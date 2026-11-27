@@ -269,3 +269,7 @@
 .cl-userButtonPopoverActionButtonIcon {
   color: #a1a1aa !important;
 }
+
+::-webkit-scrollbar {
+  display: none;
+}

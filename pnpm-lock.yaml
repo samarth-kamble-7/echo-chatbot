@@ -250,6 +250,9 @@ importers:
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
+      unpdf:
+        specifier: ^2.2.3
+        version: 2.2.3
     devDependencies:
       '@tailwindcss/turbopack':
         specifier: 4.3.3
@@ -4161,6 +4164,17 @@ packages:
   universalify@2.0.1:
     resolution: {integrity: sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==}
     engines: {node: '>= 10.0.0'}
+
+  unpdf@2.2.3:
+    resolution: {integrity: sha512-fDdQW4Wh+fYow4W0/Cid+Hh4ql1hw3RxhpwXCVHrDzwOpcptqww5QejjssClz7l/srO1S8ObdYswXQbtg+bjbg==}
+    peerDependencies:
+      '@napi-rs/canvas': ^0.1.69 || ^1.0.0
+      pdfjs-dist: '*'
+    peerDependenciesMeta:
+      '@napi-rs/canvas':
+        optional: true
+      pdfjs-dist:
+        optional: true
 
   unrs-resolver@1.13.0:
     resolution: {integrity: sha512-mcPQo9Vm6kXd84d/WqMiYBi2CcA57QHBX/ev5PoUEb8b2oQzUvJ6xYsfseQblnCncgnVmCZGWiFwK7KkS5JZJA==}
@@ -8113,6 +8127,8 @@ snapshots:
       unist-util-visit-parents: 6.1.0
 
   universalify@2.0.1: {}
+
+  unpdf@2.2.3: {}
 
   unrs-resolver@1.13.0:
     dependencies:
