@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useClerk, useOrganization, useUser } from "@clerk/nextjs";
 import {
   Building2,
@@ -18,6 +19,7 @@ import {
   VolumeX,
   Clock,
   Trash2,
+  Lock,
 } from "lucide-react";
 
 export interface SettingsMember {
@@ -44,6 +46,8 @@ interface SettingsPanelProps {
   orgImageUrl: string | null;
   createdAt: string;
   currentUserId: string;
+  hasActivePlan: boolean;
+  memberLimit: number | null;
   initialMembers: SettingsMember[];
   initialInvitations: SettingsInvitation[];
 }
@@ -57,6 +61,8 @@ export function SettingsPanel({
   orgImageUrl,
   createdAt,
   currentUserId,
+  hasActivePlan,
+  memberLimit,
   initialMembers,
   initialInvitations,
 }: SettingsPanelProps) {
@@ -142,8 +148,13 @@ export function SettingsPanel({
     }
   };
 
+  const totalSeatsUsed = initialMembers.length + invitations.length;
+  const seatLimitReached =
+    !hasActivePlan || (memberLimit !== null && totalSeatsUsed >= memberLimit);
+
   const handleInviteMember = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (seatLimitReached) return;
     const email = inviteEmail.trim();
     if (!email || !organization || inviting) return;
 
@@ -424,46 +435,86 @@ export function SettingsPanel({
         <div className="space-y-6">
           {/* Invite Teammate Card */}
           <div className="rounded-xl border border-zinc-800 bg-[#09090b] p-6 space-y-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-              <UserPlus className="size-4 text-emerald-400" />
-              <h2>Invite Team Member</h2>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+                <UserPlus className="size-4 text-emerald-400" />
+                <h2>Invite Team Member</h2>
+              </div>
+              {memberLimit !== null && (
+                <span className="text-[11px] font-mono text-zinc-400">
+                  {totalSeatsUsed} / {memberLimit} seats used
+                </span>
+              )}
             </div>
 
-            <form
-              onSubmit={handleInviteMember}
-              className="flex flex-col sm:flex-row gap-2"
-            >
-              <input
-                type="email"
-                required
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="Invite teammate by email..."
-                className="flex-1 h-9 px-3 rounded-md border border-zinc-800 bg-[#050509] text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600"
-              />
-              <select
-                value={inviteRole}
-                onChange={(e) =>
-                  setInviteRole(e.target.value as "org:member" | "org:admin")
-                }
-                className="h-9 px-3 rounded-md border border-zinc-800 bg-[#050509] text-xs text-zinc-200 focus:outline-none"
+            {!hasActivePlan ? (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 text-xs text-amber-200">
+                  <Lock className="size-4 text-amber-400 shrink-0" />
+                  <span>
+                    An active subscription is required to invite team members.
+                  </span>
+                </div>
+                <Link
+                  href="/dashboard/billing"
+                  className="h-8 px-3.5 rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold inline-flex items-center justify-center shrink-0 transition-colors"
+                >
+                  View Plans
+                </Link>
+              </div>
+            ) : seatLimitReached ? (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 text-xs text-amber-200">
+                  <Lock className="size-4 text-amber-400 shrink-0" />
+                  <span>
+                    Seat limit reached ({totalSeatsUsed} / {memberLimit}).
+                    Upgrade your plan to invite more teammates.
+                  </span>
+                </div>
+                <Link
+                  href="/dashboard/billing"
+                  className="h-8 px-3.5 rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold inline-flex items-center justify-center shrink-0 transition-colors"
+                >
+                  Upgrade Plan
+                </Link>
+              </div>
+            ) : (
+              <form
+                onSubmit={handleInviteMember}
+                className="flex flex-col sm:flex-row gap-2"
               >
-                <option value="org:member">Member</option>
-                <option value="org:admin">Admin</option>
-              </select>
-              <button
-                type="submit"
-                disabled={inviting || !inviteEmail.trim() || !organization}
-                className="h-9 px-4 rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0 transition-colors"
-              >
-                {inviting ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <UserPlus className="size-3.5" />
-                )}
-                <span>Send Invite</span>
-              </button>
-            </form>
+                <input
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="Invite teammate by email..."
+                  className="flex-1 h-9 px-3 rounded-md border border-zinc-800 bg-[#050509] text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600"
+                />
+                <select
+                  value={inviteRole}
+                  onChange={(e) =>
+                    setInviteRole(e.target.value as "org:member" | "org:admin")
+                  }
+                  className="h-9 px-3 rounded-md border border-zinc-800 bg-[#050509] text-xs text-zinc-200 focus:outline-none"
+                >
+                  <option value="org:member">Member</option>
+                  <option value="org:admin">Admin</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={inviting || !inviteEmail.trim() || !organization}
+                  className="h-9 px-4 rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0 transition-colors"
+                >
+                  {inviting ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <UserPlus className="size-3.5" />
+                  )}
+                  <span>Send Invite</span>
+                </button>
+              </form>
+            )}
 
             {inviteFeedback && (
               <div

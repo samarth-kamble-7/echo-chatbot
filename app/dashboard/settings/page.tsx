@@ -1,5 +1,8 @@
 import React from "react";
+import { eq } from "drizzle-orm";
 import { clerkClient } from "@clerk/nextjs/server";
+import { db } from "@/db/client";
+import { subscription } from "@/db/schema";
 import { getActiveOrgContext } from "@/lib/knowledge/org";
 import {
   SettingsPanel,
@@ -16,7 +19,7 @@ export default async function SettingsPage() {
   }
 
   const client = await clerkClient();
-  const [org, membershipsRes, invitationsRes] = await Promise.all([
+  const [org, membershipsRes, invitationsRes, subRows] = await Promise.all([
     client.organizations.getOrganization({ organizationId: ctx.orgId }),
     client.organizations.getOrganizationMembershipList({
       organizationId: ctx.orgId,
@@ -27,7 +30,24 @@ export default async function SettingsPage() {
       status: ["pending"],
       limit: 25,
     }),
+    db
+      .select()
+      .from(subscription)
+      .where(eq(subscription.organizationId, ctx.orgId))
+      .limit(1),
   ]);
+
+  const sub = subRows[0];
+  const hasActivePlan = Boolean(
+    sub && (sub.status === "active" || sub.status === "trialing")
+  );
+  const memberLimit = !hasActivePlan
+    ? 1
+    : sub?.plan === "starter"
+    ? 2
+    : sub?.plan === "pro"
+    ? 10
+    : null;
 
   const members: SettingsMember[] = (membershipsRes.data || []).map((m) => {
     const pub = m.publicUserData;
@@ -74,6 +94,8 @@ export default async function SettingsPage() {
       orgImageUrl={org.imageUrl || null}
       createdAt={createdAt}
       currentUserId={ctx.userId}
+      hasActivePlan={hasActivePlan}
+      memberLimit={memberLimit}
       initialMembers={members}
       initialInvitations={invitations}
     />

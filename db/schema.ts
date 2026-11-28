@@ -168,3 +168,21 @@ export const chatMessage = pgTable("chat_message", {
 
 export type ChatSession = typeof chatSession.$inferSelect;
 export type ChatMessageRow = typeof chatMessage.$inferSelect;
+
+export const subscription = pgTable("subscription", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .unique()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  stripeCustomerId: text("stripe_customer_id").unique(),
+  stripeSubscriptionId: text("stripe_subscription_id").unique(),
+  stripePriceId: text("stripe_price_id"),
+  plan: text("plan").notNull().default("starter"), // "starter" | "pro" | "enterprise"
+  status: text("status").notNull().default("inactive"), // "active" | "trialing" | "past_due" | "canceled" | "inactive"
+  currentPeriodEnd: text("current_period_end"),
+  createdAt: text("created_at").default(sql`now()`),
+  updatedAt: text("updated_at").default(sql`now()`),
+});
+
+export type Subscription = typeof subscription.$inferSelect;

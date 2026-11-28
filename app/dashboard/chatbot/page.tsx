@@ -2,6 +2,7 @@ import React from "react";
 import { getSectionsWithSources } from "@/lib/actions/sections";
 import { getChatbotSettings } from "@/lib/actions/chatbot";
 import { ChatPlayground } from "@/components/dashboard/chatbot/chat-playground";
+import { SubscriptionGate } from "@/components/dashboard/billing/subscription-gate";
 
 export default async function ChatbotPage() {
   const [sectionsRes, settingsRes] = await Promise.all([
@@ -35,10 +36,12 @@ export default async function ChatbotPage() {
       };
 
   return (
-    <ChatPlayground
-      orgId={orgId}
-      sections={activeSections}
-      initialConfig={initialConfig}
-    />
+    <SubscriptionGate>
+      <ChatPlayground
+        orgId={orgId}
+        sections={activeSections}
+        initialConfig={initialConfig}
+      />
+    </SubscriptionGate>
   );
 }

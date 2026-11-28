@@ -12,6 +12,7 @@ import {
   Palette,
   Settings,
   Code2,
+  CreditCard,
   Loader2,
 } from "lucide-react";
 
@@ -41,6 +42,7 @@ const NAV_PAGES = [
   { title: "Sections", href: "/dashboard/sections", icon: Layers },
   { title: "Chatbot", href: "/dashboard/chatbot", icon: Palette },
   { title: "Integration", href: "/dashboard/integration", icon: Code2 },
+  { title: "Billing", href: "/dashboard/billing", icon: CreditCard },
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

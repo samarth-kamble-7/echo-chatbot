@@ -9,6 +9,7 @@ import {
   Inbox,
   Settings,
   Code2,
+  CreditCard,
   Menu,
   X,
 } from "lucide-react";
@@ -62,6 +63,11 @@ const CONFIG_ITEMS: NavItemConfig[] = [
 ];
 
 const ACCOUNT_ITEMS: NavItemConfig[] = [
+  {
+    title: "Billing",
+    href: "/dashboard/billing",
+    icon: CreditCard,
+  },
   {
     title: "Settings",
     href: "/dashboard/settings",

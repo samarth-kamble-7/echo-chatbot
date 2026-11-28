@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { chatbotSettings } from "@/db/schema";
 import { getActiveOrgContext } from "@/lib/knowledge/org";
 import { WidgetEmbedPanel } from "@/components/dashboard/widget/widget-embed-panel";
+import { SubscriptionGate } from "@/components/dashboard/billing/subscription-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,8 @@ export default async function IntegrationPage() {
   const botName = botRows[0]?.botName || "Echo Support";
 
   return (
-    <WidgetEmbedPanel orgId={ctx.orgId} origin={origin} botName={botName} />
+    <SubscriptionGate>
+      <WidgetEmbedPanel orgId={ctx.orgId} origin={origin} botName={botName} />
+    </SubscriptionGate>
   );
 }
