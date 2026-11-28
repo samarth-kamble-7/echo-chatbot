@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Palette,
   Settings,
+  Code2,
   Loader2,
 } from "lucide-react";
 
@@ -39,6 +40,7 @@ const NAV_PAGES = [
   { title: "Knowledge", href: "/dashboard/knowledge", icon: Library },
   { title: "Sections", href: "/dashboard/sections", icon: Layers },
   { title: "Chatbot", href: "/dashboard/chatbot", icon: Palette },
+  { title: "Integration", href: "/dashboard/integration", icon: Code2 },
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

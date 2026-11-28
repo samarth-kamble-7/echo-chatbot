@@ -8,6 +8,7 @@ import {
   Palette,
   Inbox,
   Settings,
+  Code2,
   Menu,
   X,
 } from "lucide-react";
@@ -52,6 +53,11 @@ const CONFIG_ITEMS: NavItemConfig[] = [
     title: "Chatbot",
     href: "/dashboard/chatbot",
     icon: Palette,
+  },
+  {
+    title: "Integration",
+    href: "/dashboard/integration",
+    icon: Code2,
   },
 ];
 

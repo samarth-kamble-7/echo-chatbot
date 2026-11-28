@@ -1,10 +1,12 @@
 (function () {
   var scriptEl =
     document.currentScript ||
+    document.querySelector("script[data-org-id][src*='widget.js']") ||
     document.querySelector("script[data-org][src*='widget.js']");
   if (!scriptEl) return;
 
-  var orgId = scriptEl.getAttribute("data-org");
+  var orgId =
+    scriptEl.getAttribute("data-org-id") || scriptEl.getAttribute("data-org");
   if (!orgId) return;
 
   var baseUrl = new URL(scriptEl.src).origin;
