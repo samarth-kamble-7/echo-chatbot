@@ -8,6 +8,7 @@ import {
 } from "@/components/dashboard/sidebar";
 import { Breadcrumbs } from "@/components/dashboard/breadcrumbs";
 import { HeaderSearch } from "@/components/dashboard/header-search";
+import { getOrgPlanAndLimits } from "@/lib/billing/limits";
 
 export const metadata = {
   title: "Echo Support | Workspace Dashboard",
@@ -54,6 +55,10 @@ export default async function DashboardLayout({
     currentOrgName = activeOrg.organization.name;
   }
 
+  const planInfo = activeOrg?.organization?.id
+    ? await getOrgPlanAndLimits(activeOrg.organization.id)
+    : { isActive: false, label: "No Active Plan" };
+
   const cookieStore = await cookies();
   const defaultCollapsed =
     cookieStore.get("echo-sidebar-collapsed")?.value === "true";
@@ -61,7 +66,11 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen w-full bg-[#050509] text-zinc-100 flex antialiased selection:bg-zinc-800 selection:text-white">
       {/* Docked Full-Height Enterprise Sidebar */}
-      <DashboardSidebar defaultCollapsed={defaultCollapsed} />
+      <DashboardSidebar
+        defaultCollapsed={defaultCollapsed}
+        planLabel={planInfo.label}
+        hasActivePlan={planInfo.isActive}
+      />
 
       {/* Main Content Viewport */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">

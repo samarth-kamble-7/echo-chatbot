@@ -90,8 +90,12 @@ export function MobileSidebarButton() {
 
 export function DashboardSidebar({
   defaultCollapsed = false,
+  planLabel = "No Active Plan",
+  hasActivePlan = false,
 }: {
   defaultCollapsed?: boolean;
+  planLabel?: string;
+  hasActivePlan?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -121,7 +125,11 @@ export function DashboardSidebar({
         } hidden md:flex h-dvh min-h-screen sticky top-0 flex-col justify-between bg-[#09090b] border-r border-zinc-800/80 shrink-0 select-none z-30 transition-[width] duration-200`}
       >
         {/* Top Workspace Switcher (outside overflow container so popover never clips) */}
-        <WorkspaceSwitcher collapsed={collapsed} />
+        <WorkspaceSwitcher
+          collapsed={collapsed}
+          planLabel={planLabel}
+          hasActivePlan={hasActivePlan}
+        />
 
         {/* Scrollable Grouped Navigation */}
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
@@ -185,7 +193,11 @@ export function DashboardSidebar({
               </button>
             </div>
 
-            <WorkspaceSwitcher collapsed={false} />
+            <WorkspaceSwitcher
+              collapsed={false}
+              planLabel={planLabel}
+              hasActivePlan={hasActivePlan}
+            />
 
             <div
               className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden"

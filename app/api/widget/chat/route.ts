@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { retrieveRelevantChunks } from "@/lib/knowledge/retrieve";
 import { generateGroundedAnswer, isGeminiConfigured } from "@/lib/ai/gemini";
+import { getOrgPlanAndLimits } from "@/lib/billing/limits";
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
@@ -39,6 +40,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Missing orgId, question, or sessionToken" },
         { status: 400, headers: CORS_HEADERS }
+      );
+    }
+
+    const planInfo = await getOrgPlanAndLimits(orgId);
+    if (!planInfo.isActive) {
+      return NextResponse.json(
+        { error: "This workspace does not have an active subscription." },
+        { status: 402, headers: CORS_HEADERS }
       );
     }
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { db } from "@/db/client";
 import {
@@ -11,6 +11,7 @@ import {
   type KnowledgeSource,
 } from "@/db/schema";
 import { getActiveOrgContext } from "@/lib/knowledge/org";
+import { getOrgPlanAndLimits } from "@/lib/billing/limits";
 import { chunkText } from "@/lib/knowledge/chunker";
 import {
   discoverSiteUrls,
@@ -35,6 +36,26 @@ async function saveSourceAndChunks(params: {
   fileId?: string | null;
   text: string;
 }): Promise<ActionResult<KnowledgeSource>> {
+  const planInfo = await getOrgPlanAndLimits(params.orgId);
+  if (!planInfo.isActive) {
+    return {
+      success: false,
+      error: "An active subscription is required to add knowledge sources.",
+    };
+  }
+  if (planInfo.limits.sources !== null) {
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(knowledgeSource)
+      .where(eq(knowledgeSource.organizationId, params.orgId));
+    if ((countRow?.count || 0) >= planInfo.limits.sources) {
+      return {
+        success: false,
+        error: `Knowledge source limit reached (${planInfo.limits.sources}). Upgrade your plan in Billing to add more.`,
+      };
+    }
+  }
+
   const chunks = chunkText(params.text);
   if (chunks.length === 0) {
     return {

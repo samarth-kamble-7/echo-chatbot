@@ -20,7 +20,13 @@ import {
   Clock,
   Trash2,
   Lock,
+  AlertTriangle,
+  X,
 } from "lucide-react";
+import {
+  deleteCurrentOrganization,
+  deleteCurrentUserAccount,
+} from "@/lib/actions/account";
 
 export interface SettingsMember {
   id: string;
@@ -117,6 +123,40 @@ export function SettingsPanel({
     if (typeof Notification === "undefined") return "unsupported";
     return Notification.permission;
   });
+
+  // Danger zone deletion modal state
+  const [deleteModal, setDeleteModal] = useState<"org" | "user" | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletingTarget, setDeletingTarget] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleConfirmDelete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (deleteConfirmText.trim() !== "DELETE" || deletingTarget || !deleteModal)
+      return;
+
+    setDeletingTarget(true);
+    setDeleteError(null);
+
+    if (deleteModal === "org") {
+      const res = await deleteCurrentOrganization();
+      if (!res.success) {
+        setDeleteError(res.error);
+        setDeletingTarget(false);
+        return;
+      }
+      window.location.assign(res.data.redirectTo);
+      return;
+    }
+
+    const res = await deleteCurrentUserAccount();
+    if (!res.success) {
+      setDeleteError(res.error);
+      setDeletingTarget(false);
+      return;
+    }
+    window.location.assign("/");
+  };
 
   const handleCopyId = async () => {
     try {
@@ -426,6 +466,32 @@ export function SettingsPanel({
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* Danger Zone: Delete Organization */}
+          <div className="rounded-xl border border-red-500/30 bg-[#09090b] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-red-400 flex items-center gap-2">
+                <AlertTriangle className="size-4" />
+                <h2>Delete Organization</h2>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Cancels any active Stripe subscription and permanently deletes
+                this workspace from Clerk and the database.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteConfirmText("");
+                setDeleteError(null);
+                setDeleteModal("org");
+              }}
+              className="h-9 px-4 rounded-md border border-red-500/40 bg-red-500/15 hover:bg-red-500/25 text-red-300 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Delete Organization</span>
+            </button>
           </div>
         </div>
       )}
@@ -777,6 +843,33 @@ export function SettingsPanel({
               </div>
             </form>
           </div>
+
+          {/* Danger Zone: Delete User Account */}
+          <div className="rounded-xl border border-red-500/30 bg-[#09090b] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-red-400 flex items-center gap-2">
+                <AlertTriangle className="size-4" />
+                <h2>Delete User Account</h2>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Permanently deletes your user account from Clerk and the
+                database, and cancels Stripe subscriptions on workspaces you own
+                alone.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteConfirmText("");
+                setDeleteError(null);
+                setDeleteModal("user");
+              }}
+              className="h-9 px-4 rounded-md border border-red-500/40 bg-red-500/15 hover:bg-red-500/25 text-red-300 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Delete Account</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -839,6 +932,94 @@ export function SettingsPanel({
                 Enable
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog for Organization / User Deletion */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-xs"
+            onClick={() => {
+              if (!deletingTarget) setDeleteModal(null);
+            }}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative z-10 w-full max-w-md rounded-xl border border-red-500/40 bg-[#09090b] shadow-2xl overflow-hidden"
+          >
+            <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-red-400">
+                <AlertTriangle className="size-4" />
+                <span>
+                  {deleteModal === "org"
+                    ? "Delete Organization"
+                    : "Delete User Account"}
+                </span>
+              </div>
+              <button
+                type="button"
+                disabled={deletingTarget}
+                onClick={() => setDeleteModal(null)}
+                aria-label="Close dialog"
+                className="text-zinc-400 hover:text-zinc-100 p-1 cursor-pointer"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmDelete} className="p-5 space-y-4">
+              <p className="text-xs text-zinc-300 leading-relaxed">
+                {deleteModal === "org"
+                  ? "This will cancel any active Stripe subscription and permanently delete this organization, its conversations, knowledge base, and settings from Clerk and the database."
+                  : "This will permanently delete your account from Clerk and the database, and cancel Stripe subscriptions for any workspace where you are the sole member."}
+              </p>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-zinc-400 block">
+                  Type <span className="font-mono text-zinc-100">DELETE</span>{" "}
+                  to confirm
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="w-full h-9 px-3 rounded-md border border-zinc-800 bg-[#050509] text-xs font-mono text-zinc-100 focus:outline-none focus:border-red-500/60"
+                />
+              </div>
+
+              {deleteError && (
+                <div className="text-xs px-3 py-2 rounded-md border border-red-500/30 bg-red-500/10 text-red-300">
+                  {deleteError}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={deletingTarget}
+                  onClick={() => setDeleteModal(null)}
+                  className="h-9 px-3.5 rounded-md border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-xs text-zinc-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    deleteConfirmText.trim() !== "DELETE" || deletingTarget
+                  }
+                  className="h-9 px-4 rounded-md bg-red-600 hover:bg-red-500 text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {deletingTarget && (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  )}
+                  <span>Confirm Delete</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

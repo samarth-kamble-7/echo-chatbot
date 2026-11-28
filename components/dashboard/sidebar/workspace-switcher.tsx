@@ -8,8 +8,12 @@ import { EchoLogo } from "@/components/landing/logo";
 
 export function WorkspaceSwitcher({
   collapsed = false,
+  planLabel = "No Active Plan",
+  hasActivePlan = false,
 }: {
   collapsed?: boolean;
+  planLabel?: string;
+  hasActivePlan?: boolean;
 }) {
   const { organization, isLoaded: isOrgLoaded } = useOrganization();
   const { userMemberships, setActive, isLoaded: isListLoaded } = useOrganizationList({
@@ -66,9 +70,13 @@ export function WorkspaceSwitcher({
                 {orgName}
               </span>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="size-1.5 rounded-full bg-emerald-400" />
+                <span
+                  className={`size-1.5 rounded-full ${
+                    hasActivePlan ? "bg-emerald-400" : "bg-amber-400"
+                  }`}
+                />
                 <span className="text-[10px] text-zinc-400 font-medium">
-                  Pro Workspace
+                  {planLabel}
                 </span>
               </div>
             </div>

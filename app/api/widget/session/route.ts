@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { db } from "@/db/client";
 import { chatMessage, chatSession, organization, type VisitorMetadata } from "@/db/schema";
+import { getOrgPlanAndLimits } from "@/lib/billing/limits";
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -218,6 +219,35 @@ export async function POST(req: Request) {
         { error: "Workspace not found" },
         { status: 404, headers: CORS_HEADERS }
       );
+    }
+
+    const planInfo = await getOrgPlanAndLimits(orgId);
+    if (!planInfo.isActive) {
+      return NextResponse.json(
+        { error: "This workspace does not have an active subscription." },
+        { status: 402, headers: CORS_HEADERS }
+      );
+    }
+
+    if (planInfo.limits.conversations !== null) {
+      const monthStart = new Date();
+      monthStart.setUTCDate(1);
+      monthStart.setUTCHours(0, 0, 0, 0);
+      const [countRow] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(chatSession)
+        .where(
+          and(
+            eq(chatSession.organizationId, orgId),
+            gte(chatSession.createdAt, monthStart.toISOString())
+          )
+        );
+      if ((countRow?.count || 0) >= planInfo.limits.conversations) {
+        return NextResponse.json(
+          { error: "Monthly conversation limit reached for this workspace." },
+          { status: 429, headers: CORS_HEADERS }
+        );
+      }
     }
 
     const nowMs = Date.now();

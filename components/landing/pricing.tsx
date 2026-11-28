@@ -1,63 +1,55 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Pricing = () => {
-  const [annual, setAnnual] = useState(false);
-
   const plans = [
     {
       name: "Starter",
-      priceMonthly: 29,
-      priceAnnual: 24,
-      description:
-        "For teams setting up their initial documentation assistant.",
+      priceMonthly: 149,
+      description: "Core AI support for growing websites.",
       features: [
-        "1,000 monthly chat sessions",
-        "Up to 25 crawled documentation URLs",
-        "Weekly sitemap re-indexing",
-        "Standard latency queue",
-        "Email support",
+        "Up to 1,000 conversations / month",
+        "10 knowledge sources (URL, PDF, text)",
+        "2 team members",
+        "3 support sections",
+        "Embeddable chat widget + AI Q&A",
       ],
-      ctaText: "Choose Starter",
+      ctaText: "Get Started",
       highlighted: false,
     },
     {
       name: "Pro",
-      priceMonthly: 79,
-      priceAnnual: 65,
+      priceMonthly: 549,
       description:
-        "For scaling products requiring custom guardrails and high volume.",
+        "For scaling teams requiring human handoff and custom guardrails.",
       features: [
-        "10,000 monthly chat sessions",
-        "Unlimited documentation URLs",
-        "Continuous automated re-indexing",
-        "Custom strict guardrails & boundary rules",
-        "Brand tone matching profiles",
-        "Human escalation & webhook forwarding",
-        "Priority support",
+        "Up to 5,000 conversations / month",
+        "50 knowledge sources",
+        "10 team members",
+        "20 support sections",
+        "Real-time operator inbox & sound alerts",
+        "Custom widget branding & themes",
       ],
       ctaText: "Choose Pro",
       highlighted: true,
     },
     {
       name: "Enterprise",
-      priceMonthly: null,
-      priceAnnual: null,
+      priceMonthly: 949,
       description:
-        "For organizations requiring custom deployment and compliance agreements.",
+        "Unlimited scale for high-volume customer support teams.",
       features: [
-        "Custom chat session volume",
-        "Dedicated isolated inference endpoint",
-        "Custom LLM fine-tuning",
-        "Custom data retention policies",
-        "Uptime SLA agreement",
-        "Dedicated account representative",
+        "Unlimited conversations",
+        "Unlimited knowledge sources",
+        "Unlimited team members",
+        "Unlimited support sections",
+        "Custom AI routing & priority support",
       ],
-      ctaText: "Contact Sales",
+      ctaText: "Choose Enterprise",
       highlighted: false,
     },
   ];
@@ -76,33 +68,10 @@ export const Pricing = () => {
           <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-4">
             Simple, Transparent Plans
           </h2>
-          <p className="text-sm sm:text-base text-zinc-400 leading-relaxed mb-6">
-            Clear usage-based tiers with no per-agent seat licenses.
+          <p className="text-sm sm:text-base text-zinc-400 leading-relaxed">
+            Straightforward monthly pricing built for production customer
+            support teams.
           </p>
-
-          {/* Billing switcher */}
-          <div className="inline-flex items-center gap-1 p-1 rounded-md border border-zinc-800 bg-zinc-900 text-xs font-medium">
-            <button
-              onClick={() => setAnnual(false)}
-              className={`px-3 py-1.5 rounded-sm transition-colors ${
-                !annual
-                  ? "bg-zinc-800 text-white"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setAnnual(true)}
-              className={`px-3 py-1.5 rounded-sm transition-colors ${
-                annual
-                  ? "bg-zinc-800 text-white"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              Annual billing (discounted)
-            </button>
-          </div>
         </div>
 
         {/* Pricing Cards */}
@@ -112,7 +81,7 @@ export const Pricing = () => {
               key={plan.name}
               className={`rounded-lg p-6 flex flex-col justify-between ${
                 plan.highlighted
-                  ? "border-2 border-zinc-400 bg-zinc-900/80 shadow-md"
+                  ? "border-2 border-emerald-500/70 bg-zinc-900/80 shadow-md"
                   : "border border-zinc-800 bg-zinc-900/30"
               }`}
             >
@@ -122,7 +91,7 @@ export const Pricing = () => {
                     {plan.name}
                   </h3>
                   {plan.highlighted && (
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-sm bg-zinc-200 text-zinc-950 font-semibold">
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-sm bg-emerald-500 text-zinc-950 font-semibold">
                       Recommended
                     </span>
                   )}
@@ -133,18 +102,12 @@ export const Pricing = () => {
                 </p>
 
                 <div className="mb-6">
-                  {plan.priceMonthly !== null ? (
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
-                        ${annual ? plan.priceAnnual : plan.priceMonthly}
-                      </span>
-                      <span className="text-xs text-zinc-400">/ month</span>
-                    </div>
-                  ) : (
-                    <div className="text-2xl sm:text-3xl font-bold text-white">
-                      Custom
-                    </div>
-                  )}
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+                      ${plan.priceMonthly}
+                    </span>
+                    <span className="text-xs text-zinc-400">/ month</span>
+                  </div>
                 </div>
 
                 <div className="space-y-2.5 mb-8 pt-4 border-t border-zinc-800">
@@ -153,7 +116,7 @@ export const Pricing = () => {
                       key={feat}
                       className="flex items-start gap-2.5 text-xs text-zinc-300"
                     >
-                      <Check className="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                       <span>{feat}</span>
                     </div>
                   ))}
@@ -162,9 +125,9 @@ export const Pricing = () => {
 
               <Link href="/sign-up" className="w-full">
                 <Button
-                  className={`w-full h-10 text-sm font-medium rounded-md transition-colors ${
+                  className={`w-full h-10 text-sm font-medium rounded-md transition-colors cursor-pointer ${
                     plan.highlighted
-                      ? "bg-zinc-100 text-zinc-950 hover:bg-zinc-200"
+                      ? "bg-emerald-500 text-zinc-950 hover:bg-emerald-400 font-semibold"
                       : "bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
                   }`}
                 >
