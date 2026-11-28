@@ -1,9 +1,10 @@
 import React from "react";
+import { getConversations } from "@/lib/actions/conversion";
+import { ConversionInbox } from "@/components/dashboard/conversion/conversion-inbox";
 
-export default function ConversionPage() {
-  return (
-    <div>
-      <h1>Conversion</h1>
-    </div>
-  );
+export default async function ConversionPage() {
+  const res = await getConversations();
+  const initialConversations = res.success ? res.data : [];
+
+  return <ConversionInbox initialConversations={initialConversations} />;
 }

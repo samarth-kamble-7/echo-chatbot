@@ -7,21 +7,27 @@ import { NavItem } from "./nav-item";
 interface NavSectionProps {
   title?: string;
   items?: NavItemConfig[];
+  collapsed?: boolean;
   children?: React.ReactNode;
 }
 
-export function NavSection({ title, items, children }: NavSectionProps) {
+export function NavSection({
+  title,
+  items,
+  collapsed = false,
+  children,
+}: NavSectionProps) {
   return (
     <div className="space-y-1">
-      {title && (
-        <div className="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
+      {title && !collapsed && (
+        <div className="px-3 pb-1 text-[11px] font-medium text-zinc-500">
           {title}
         </div>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-1">
         {items?.map((item) => (
-          <NavItem key={item.href} {...item} />
+          <NavItem key={item.href} {...item} collapsed={collapsed} />
         ))}
         {children}
       </div>

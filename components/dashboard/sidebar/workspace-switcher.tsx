@@ -6,7 +6,11 @@ import { useOrganization, useOrganizationList } from "@clerk/nextjs";
 import { ChevronsUpDown, Check, Plus, Building2, Sparkles } from "lucide-react";
 import { EchoLogo } from "@/components/landing/logo";
 
-export function WorkspaceSwitcher() {
+export function WorkspaceSwitcher({
+  collapsed = false,
+}: {
+  collapsed?: boolean;
+}) {
   const { organization, isLoaded: isOrgLoaded } = useOrganization();
   const { userMemberships, setActive, isLoaded: isListLoaded } = useOrganizationList({
     userMemberships: { infinite: true },
@@ -30,11 +34,19 @@ export function WorkspaceSwitcher() {
   const orgLogo = currentOrg?.imageUrl;
 
   return (
-    <div className="relative p-3 border-b border-zinc-800/80" ref={containerRef}>
+    <div
+      className={`relative border-b border-zinc-800/80 ${
+        collapsed ? "p-2.5 flex justify-center" : "p-3"
+      }`}
+      ref={containerRef}
+    >
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-zinc-800/50 transition-colors group cursor-pointer text-left border border-transparent hover:border-zinc-800"
+        title={collapsed ? orgName : undefined}
+        className={`flex items-center rounded-lg hover:bg-zinc-800/50 transition-colors group cursor-pointer text-left border border-transparent hover:border-zinc-800 ${
+          collapsed ? "p-1 justify-center" : "w-full justify-between p-2"
+        }`}
       >
         <div className="flex items-center gap-2.5 min-w-0">
           {/* Logo / Org Avatar */}
@@ -48,25 +60,33 @@ export function WorkspaceSwitcher() {
             )}
           </div>
 
-          {/* Org Name & Status */}
-          <div className="min-w-0 flex flex-col">
-            <span className="text-xs font-semibold text-zinc-100 truncate group-hover:text-white">
-              {orgName}
-            </span>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="size-1.5 rounded-full bg-emerald-400" />
-              <span className="text-[10px] text-zinc-400 font-medium">Pro Workspace</span>
+          {!collapsed && (
+            <div className="min-w-0 flex flex-col">
+              <span className="text-xs font-semibold text-zinc-100 truncate group-hover:text-white">
+                {orgName}
+              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="size-1.5 rounded-full bg-emerald-400" />
+                <span className="text-[10px] text-zinc-400 font-medium">
+                  Pro Workspace
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* UpDown Chevrons like Linear/Vercel */}
-        <ChevronsUpDown className="size-3.5 text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0 ml-1" />
+        {!collapsed && (
+          <ChevronsUpDown className="size-3.5 text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0 ml-1" />
+        )}
       </button>
 
       {/* Workspace Dropdown */}
       {isOpen && (
-        <div className="absolute top-[calc(100%+4px)] inset-x-3 z-50 p-1.5 rounded-xl bg-[#0e0e12] border border-zinc-800 shadow-2xl space-y-1 animate-in fade-in zoom-in-95 duration-100">
+        <div
+          className={`absolute z-50 w-56 p-1.5 rounded-xl bg-[#0e0e12] border border-zinc-800 shadow-2xl space-y-1 animate-in fade-in zoom-in-95 duration-100 ${
+            collapsed ? "top-2.5 left-[calc(100%+8px)]" : "top-[calc(100%+4px)] left-3"
+          }`}
+        >
           <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
             Workspaces
           </div>

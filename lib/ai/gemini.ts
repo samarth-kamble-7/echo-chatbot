@@ -103,18 +103,68 @@ export async function generateEmbeddingsForChunks(
   return results;
 }
 
+export type ConversationToolAction = "none" | "escalate" | "resolve";
+
+export interface ConversationHistoryMessage {
+  role: "user" | "assistant" | "operator";
+  content: string;
+}
+
+const CONVERSATION_TOOLS = [
+  {
+    functionDeclarations: [
+      {
+        name: "escalate_conversation",
+        description:
+          "Escalate the conversation to a human support operator. Call this when the user asks to speak with a human, operator, agent, or support team, OR when the provided documentation context does not contain enough information to answer the user's question.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            reason: {
+              type: "STRING",
+              description: "Brief reason why the conversation is being escalated.",
+            },
+          },
+          required: ["reason"],
+        },
+      },
+      {
+        name: "resolve_conversation",
+        description:
+          "Mark the conversation as resolved and close it. Call this when the user confirms their issue is solved, their question is answered, or they express thanks/goodbye indicating they need no further help.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            reason: {
+              type: "STRING",
+              description: "Brief reason why the conversation is being resolved.",
+            },
+          },
+          required: ["reason"],
+        },
+      },
+    ],
+  },
+];
+
 /**
- * Generates a grounded support answer strictly from retrieved documentation chunks.
+ * Generates a grounded support answer strictly from retrieved documentation chunks,
+ * with Gemini tool calling support for escalating or resolving conversations.
  */
 export async function generateGroundedAnswer(params: {
   question: string;
   contexts: GroundedContext[];
+  history?: ConversationHistoryMessage[];
   sectionConfig?: SectionPromptConfig;
   botIdentity?: {
     botName?: string;
     systemPrompt?: string | null;
   };
-}): Promise<{ answer: string; model: string }> {
+}): Promise<{
+  answer: string;
+  model: string;
+  action: ConversationToolAction;
+}> {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
     throw new Error(
@@ -163,18 +213,38 @@ export async function generateGroundedAnswer(params: {
 Answer the user's question using ONLY the provided documentation context below.
 Rules:
 1. Never invent facts, endpoints, pricing, or steps that are not explicitly in the provided context.
-2. If the context does not contain enough information to answer, clearly state that the documentation does not cover this and recommend contacting human support.
-3. Do not mention internal source labels like [Source 1] or file names in your reply.
-4. Keep answers clear, concise, and helpful.${
+2. If the user asks to talk to a human, operator, or support team, OR if the documentation context does not cover their question, call the escalate_conversation tool.
+3. If the user confirms their issue is resolved, thanks you without asking a follow-up question, or says they are done, call the resolve_conversation tool.
+4. Do not mention internal source labels like [Source 1] or file names in your reply.
+5. Keep answers clear, concise, and helpful.${
     customInstructions ? `\n\nWorkspace Instructions:\n${customInstructions}` : ""
   }${
     sectionRules.length > 0 ? `\n\nSection Rules:\n${sectionRules.join("\n")}` : ""
   }`;
 
+  const historyContents = (params.history || []).map((msg) => ({
+    role: msg.role === "user" ? "user" : "model",
+    parts: [{ text: msg.content }],
+  }));
+
+  const userTurn = {
+    role: "user",
+    parts: [
+      {
+        text: `Documentation Context:\n${contextBlock}\n\nUser Message: ${params.question}`,
+      },
+    ],
+  };
+
   const candidateModels = ["gemini-2.5-flash", "gemini-3.8-flash"];
   let lastError = "";
 
   for (const model of candidateModels) {
+    const contents: Array<Record<string, unknown>> = [
+      ...historyContents,
+      userTurn,
+    ];
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
         apiKey
@@ -186,16 +256,13 @@ Rules:
           systemInstruction: {
             parts: [{ text: systemInstruction }],
           },
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: `Documentation Context:\n${contextBlock}\n\nUser Question: ${params.question}`,
-                },
-              ],
+          contents,
+          tools: CONVERSATION_TOOLS,
+          toolConfig: {
+            functionCallingConfig: {
+              mode: "AUTO",
             },
-          ],
+          },
           generationConfig: {
             temperature: 0.2,
             maxOutputTokens: 768,
@@ -218,21 +285,119 @@ Rules:
 
     const data = (await response.json()) as {
       candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> };
+        content?: {
+          role?: string;
+          parts?: Array<{
+            text?: string;
+            functionCall?: {
+              name?: string;
+              args?: Record<string, unknown>;
+            };
+          }>;
+        };
       }>;
     };
 
-    const answer =
-      data.candidates?.[0]?.content?.parts
-        ?.map((p) => p.text || "")
-        .join("")
-        .trim() || "";
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const fnCall = parts.find((p) => p.functionCall?.name)?.functionCall;
 
-    if (!answer) {
-      throw new Error("The AI model returned an empty response.");
+    let action: ConversationToolAction = "none";
+    if (fnCall?.name === "escalate_conversation") {
+      action = "escalate";
+    } else if (fnCall?.name === "resolve_conversation") {
+      action = "resolve";
     }
 
-    return { answer, model };
+    let answer = parts
+      .map((p) => p.text || "")
+      .join("")
+      .trim();
+
+    if (fnCall?.name && (action === "escalate" || !answer)) {
+      const toolResponsePayload =
+        action === "escalate"
+          ? {
+              status: "escalated",
+              success: true,
+              instruction:
+                "AI is now paused for this session. Clearly inform the user that this conversation has been escalated to a human operator who will reply here shortly. Do NOT invite them to ask more documentation questions.",
+            }
+          : {
+              status: "resolved",
+              success: true,
+              instruction:
+                "The conversation is now marked as resolved and closed. Give a brief, polite closing message.",
+            };
+
+      const followUpContents = [
+        ...contents,
+        {
+          role: "model",
+          parts: [{ functionCall: fnCall }],
+        },
+        {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                name: fnCall.name,
+                response: toolResponsePayload,
+              },
+            },
+          ],
+        },
+      ];
+
+      const followUpRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
+          apiKey
+        )}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: systemInstruction }],
+            },
+            contents: followUpContents,
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 256,
+              thinkingConfig: {
+                thinkingBudget: 0,
+              },
+            },
+          }),
+        }
+      );
+
+      if (followUpRes.ok) {
+        const followUpData = (await followUpRes.json()) as {
+          candidates?: Array<{
+            content?: { parts?: Array<{ text?: string }> };
+          }>;
+        };
+        answer =
+          followUpData.candidates?.[0]?.content?.parts
+            ?.map((p) => p.text || "")
+            .join("")
+            .trim() || "";
+      }
+    }
+
+    if (!answer) {
+      if (action === "escalate") {
+        answer =
+          "I've escalated this conversation to a human operator. Our team will respond shortly.";
+      } else if (action === "resolve") {
+        answer =
+          "Glad I could help! This conversation is now marked as resolved.";
+      } else {
+        throw new Error("The AI model returned an empty response.");
+      }
+    }
+
+    return { answer, model, action };
   }
 
   throw new Error(lastError || "All Gemini models are currently unavailable.");

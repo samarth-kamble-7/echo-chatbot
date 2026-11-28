@@ -125,3 +125,46 @@ export const chatbotSettings = pgTable("chatbot_settings", {
 });
 
 export type ChatbotSettings = typeof chatbotSettings.$inferSelect;
+
+export interface VisitorMetadata {
+  userAgent?: string;
+  language?: string;
+  platform?: string;
+  screenResolution?: string;
+  viewportSize?: string;
+  timezone?: string;
+  operatorTypingUntil?: number;
+  referrer?: string;
+  currentUrl?: string;
+}
+
+export const chatSession = pgTable("chat_session", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  sessionToken: text("session_token").notNull().unique(),
+  visitorName: text("visitor_name").notNull(),
+  visitorEmail: text("visitor_email").notNull(),
+  status: text("status").notNull().default("unresolved"), // "unresolved" | "escalated" | "resolved"
+  metadata: jsonb("metadata").$type<VisitorMetadata>(),
+  expiresAt: text("expires_at").notNull(),
+  lastActiveAt: text("last_active_at").notNull(),
+  createdAt: text("created_at").default(sql`now()`),
+});
+
+export const chatMessage = pgTable("chat_message", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id")
+    .notNull()
+    .references(() => chatSession.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  role: text("role").notNull(), // "user" | "assistant" | "operator"
+  content: text("content").notNull(),
+  createdAt: text("created_at").default(sql`now()`),
+});
+
+export type ChatSession = typeof chatSession.$inferSelect;
+export type ChatMessageRow = typeof chatMessage.$inferSelect;
